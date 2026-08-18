@@ -17,6 +17,11 @@ class ApiConstants {
   /// Endpoints.
   static const String health = '/health/';
 
+  static const String authRegister = '/auth/register/';
+  static const String authLogin = '/auth/login/';
+  static const String authRefresh = '/auth/refresh/';
+  static const String authMe = '/auth/me/';
+
   /// Timeouts. Speech uploads in later phases need a longer receive window,
   /// so these are deliberately generous rather than snappy.
   static const Duration connectTimeout = Duration(seconds: 10);

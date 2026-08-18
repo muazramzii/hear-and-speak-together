@@ -24,11 +24,32 @@ class ApiException implements Exception {
     required this.kind,
     required this.message,
     this.statusCode,
+    this.fieldErrors = const {},
   });
 
   final ApiErrorKind kind;
   final String message;
   final int? statusCode;
+
+  /// Per-field validation errors from DRF, e.g.
+  /// `{"email": ["An account with this email already exists."]}`.
+  /// Empty for anything that is not a 400.
+  final Map<String, List<String>> fieldErrors;
+
+  /// The first field error, suitable for showing above a form. Null when the
+  /// failure was not a validation error.
+  String? get fieldMessage {
+    for (final messages in fieldErrors.values) {
+      if (messages.isNotEmpty) return messages.first;
+    }
+    return null;
+  }
+
+  /// Errors for one specific input, so a form can mark that field.
+  String? errorFor(String field) {
+    final messages = fieldErrors[field];
+    return (messages == null || messages.isEmpty) ? null : messages.first;
+  }
 
   /// Translates a [DioException] into a user-facing error.
   factory ApiException.fromDio(DioException error) {
@@ -52,10 +73,12 @@ class ApiException implements Exception {
 
       case DioExceptionType.badResponse:
         final status = error.response?.statusCode;
+        final fieldErrors = _parseFieldErrors(error.response?.data);
         return ApiException(
           kind: ApiErrorKind.server,
           statusCode: status,
           message: _messageForStatus(status),
+          fieldErrors: fieldErrors,
         );
 
       // cancel, badCertificate, unknown, and anything a future Dio release
@@ -66,6 +89,25 @@ class ApiException implements Exception {
           message: 'Something went wrong. Please try again.',
         );
     }
+  }
+
+  /// DRF reports validation failures as `{"field": ["message", ...]}`, and
+  /// non-field failures as `{"detail": "message"}`. Both shapes are flattened
+  /// into one map here so callers do not have to care which they got.
+  static Map<String, List<String>> _parseFieldErrors(dynamic body) {
+    if (body is! Map) return const {};
+
+    final result = <String, List<String>>{};
+    body.forEach((key, value) {
+      if (key is! String) return;
+      if (value is List) {
+        final messages = value.whereType<String>().toList();
+        if (messages.isNotEmpty) result[key] = messages;
+      } else if (value is String) {
+        result[key] = [value];
+      }
+    });
+    return result;
   }
 
   static String _messageForStatus(int? status) {
