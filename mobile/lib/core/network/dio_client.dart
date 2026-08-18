@@ -3,11 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/api_constants.dart';
+import '../storage/token_storage.dart';
+import 'auth_events.dart';
+import 'auth_interceptor.dart';
 
-/// Builds the single [Dio] instance the whole app shares.
-///
-/// The auth interceptor that attaches JWT access tokens is added in Phase 2;
-/// this phase only establishes the transport and logging.
+/// Builds a [Dio] instance with the shared transport configuration and no
+/// interceptors attached.
 Dio buildDio() {
   final dio = Dio(
     BaseOptions(
@@ -24,7 +25,9 @@ Dio buildDio() {
     dio.interceptors.add(
       LogInterceptor(
         request: true,
-        requestHeader: false, // keeps tokens out of the debug console
+        // Headers carry the bearer token and bodies carry passwords, so
+        // neither is ever written to the debug console.
+        requestHeader: false,
         requestBody: false,
         responseHeader: false,
         responseBody: true,
@@ -39,6 +42,31 @@ Dio buildDio() {
 /// App-wide HTTP client. Widgets never construct their own [Dio].
 final dioProvider = Provider<Dio>((ref) {
   final dio = buildDio();
-  ref.onDispose(dio.close);
+
+  // A bare client for replaying a request after a token refresh; it must not
+  // run the auth interceptor again.
+  final retryClient = buildDio();
+
+  final storage = ref.watch(tokenStorageProvider);
+  final events = ref.watch(authEventsProvider);
+
+  dio.interceptors.add(
+    AuthInterceptor(
+      storage: storage,
+      retryClient: retryClient,
+      onAuthenticationLost: () async {
+        await storage.clear();
+        if (!events.isClosed) {
+          events.add(AuthEvent.sessionExpired);
+        }
+      },
+    ),
+  );
+
+  ref.onDispose(() {
+    dio.close();
+    retryClient.close();
+  });
+
   return dio;
 });
