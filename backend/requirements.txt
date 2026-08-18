@@ -1,0 +1,18 @@
+# ---- Core framework ----
+Django>=5.1,<6.0
+djangorestframework>=3.15,<4.0
+
+# ---- Authentication (JWT) ----
+djangorestframework-simplejwt>=5.3,<6.0
+
+# ---- Database (PostgreSQL, psycopg 3) ----
+psycopg[binary]>=3.2,<4.0
+dj-database-url>=2.2,<3.0
+
+# ---- API support ----
+django-cors-headers>=4.4,<5.0
+django-filter>=24.3
+
+# ---- Configuration / assets ----
+python-dotenv>=1.0,<2.0
+Pillow>=10.4
