@@ -71,6 +71,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "apps.core",
+    "apps.accounts",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -115,6 +116,12 @@ DATABASES = {
         conn_max_age=600,
     )
 }
+
+# ---------------------------------------------------------------------------
+# Authentication
+# Children, parents and teachers share one email-keyed user model.
+# ---------------------------------------------------------------------------
+AUTH_USER_MODEL = "accounts.User"
 
 # ---------------------------------------------------------------------------
 # Password validation
