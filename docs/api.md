@@ -179,8 +179,129 @@ is always safe to display to a child. Raw server wording is never shown.
 
 ---
 
+## Content
+
+All content endpoints require authentication and are read-only — lessons are
+authored in the Django admin, never by the app.
+
+### `GET /api/languages/`
+
+Returns each active language **with its Azure capability block**. The client
+must use this to decide which pronunciation metrics to display.
+
+```json
+[
+  {
+    "id": 1, "code": "en", "name": "English", "locale": "en-US",
+    "tts_voice": "en-US-AnaNeural",
+    "capabilities": {
+      "pronunciation_assessment": true,
+      "prosody": true,
+      "phoneme_names": true,
+      "syllable_scores": true,
+      "available_metrics": ["accuracy", "fluency", "completeness", "pronunciation", "prosody"]
+    }
+  },
+  {
+    "id": 2, "code": "ms", "name": "Bahasa Melayu", "locale": "ms-MY",
+    "tts_voice": "ms-MY-YasminNeural",
+    "capabilities": {
+      "pronunciation_assessment": true,
+      "prosody": false,
+      "phoneme_names": false,
+      "syllable_scores": false,
+      "available_metrics": ["accuracy", "fluency", "completeness", "pronunciation"]
+    }
+  }
+]
+```
+
+**Why this endpoint matters.** Azure documents prosody assessment as `en-US`
+only, and returns phoneme *names* only for `en-US` — for other locales just a
+phoneme score, with no phoneme identity. The app therefore must not render an
+intonation result for a Malay word: Azure never measured one. Rendering a
+plausible-looking value would be fabricating data.
+
+Verified against Microsoft Learn on 2026-08-19; the date is stored on each
+row as `capabilities_verified_on`.
+
+### `GET /api/categories/` · `GET /api/categories/{id}/`
+
+Not paginated. Filtered by language: `?language=en|ms`. When omitted, the
+signed-in user's `preferred_language` is used, falling back to the first
+active language. An unknown code returns `404`.
+
+The detail response embeds the category's lessons.
+
+### `GET /api/lessons/` · `GET /api/lessons/{id}/`
+
+Paginated (`results`, `count`, `next`, `previous`). Accepts `?language=` or
+`?category={id}`. The detail response embeds the full word list.
+
+### `GET /api/words/{id}/`
+
+A single vocabulary item. `text` is the reference text used for scripted
+pronunciation assessment.
+
+### `GET /api/words/{id}/quiz-round/`
+
+Builds one multiple-choice round for the **Listen** and **Quiz** modes.
+
+```json
+{
+  "word": { "id": 7, "text": "kucing", "image_url": "" },
+  "options": [ { "id": 9, "text": "anjing" }, { "id": 7, "text": "kucing" } ],
+  "correct_option_id": 7
+}
+```
+
+Options are shuffled server-side, so their order carries no hint. Wrong
+answers come from hand-picked distractors where set, topped up from the same
+category otherwise, so a round can always be built and every option is real
+vocabulary in the right language.
+
+---
+
+## Profiles
+
+A **User** is the login. A **Profile** is the learner. One family account can
+hold several children, each with their own level, points and streak — this is
+what the "Pilih Profil" screen selects between.
+
+### `GET /api/profiles/`
+
+Not paginated. Returns only profiles owned by the signed-in user. The queryset
+is filtered by owner, so another account's children are unreachable — a
+request for someone else's profile id returns `404`, not `403`.
+
+```json
+[
+  {
+    "id": 1, "name": "Ali", "avatar": "BOY_1",
+    "language_code": "ms", "language_name": "Bahasa Melayu",
+    "level": 3, "points": 230,
+    "points_into_level": 30, "points_to_next_level": 70,
+    "streak_days": 7, "last_practised_on": "2026-08-18"
+  }
+]
+```
+
+### `POST /api/profiles/` · `PATCH /api/profiles/{id}/` · `DELETE /api/profiles/{id}/`
+
+Accepts `name`, `avatar`, and `practice_language` (a language **code**, not an
+id). `owner` is never read from the request — it always comes from the token.
+
+`points`, `level` and `streak_days` are **read-only over the API**. They are
+maintained by the practice flow; letting a client post them would make the
+whole progress system trivially forgeable.
+
+Level is derived (`points // 100 + 1`) rather than stored twice, so it can
+never disagree with the point total.
+
+---
+
 ## Not yet implemented
 
-Languages, categories, lessons, words, practice evaluation, attempts,
-progress, dashboard, achievements and the parent/teacher student endpoints are
-planned for later phases and are documented here once they exist.
+Practice evaluation, attempts, progress, dashboard, achievements and the
+parent/teacher student endpoints arrive in later phases and are documented
+here once they exist.
