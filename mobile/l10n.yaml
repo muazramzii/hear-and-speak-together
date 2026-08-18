@@ -1,0 +1,9 @@
+# Generates into lib/l10n/generated rather than the synthetic
+# `package:flutter_gen`, which Flutter has deprecated.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppL10n
+output-dir: lib/l10n/generated
+synthetic-package: false
+nullable-getter: false
