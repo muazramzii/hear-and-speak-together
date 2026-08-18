@@ -43,3 +43,6 @@ mobile/android/key.properties
 *.iml
 .DS_Store
 Thumbs.db
+
+# Generated localizations (recreated by `flutter pub get` via generate: true)
+mobile/lib/l10n/generated/

@@ -11,7 +11,15 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Localization: English and Bahasa Melayu interface
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   cupertino_icons: ^1.0.8
+
+  # Remembers the chosen interface language between launches
+  shared_preferences: ^2.3.3
 
   # State management
   flutter_riverpod: ^2.6.1
@@ -36,3 +44,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
