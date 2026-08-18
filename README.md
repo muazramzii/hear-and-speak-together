@@ -5,10 +5,10 @@ helps children practise listening and speaking. Children hear a target word,
 record themselves saying it, and receive a pronunciation score with friendly,
 age-appropriate feedback.
 
-> **Status: Phase 1 (Foundation) complete.**
-> The Django + PostgreSQL backend, the Flutter client, and the connection
-> between them are established and verified. Lessons, authentication,
-> speech assessment and analytics arrive in later phases.
+> **Status: Phase 2 (Authentication) complete.**
+> The Django + PostgreSQL backend and Flutter client are connected, and users
+> can register, sign in and stay signed in with JWTs. Lessons, speech
+> assessment and analytics arrive in later phases.
 
 ---
 
@@ -19,7 +19,7 @@ age-appropriate feedback.
 | Mobile client | Flutter (Dart), Riverpod, Dio, go_router |
 | API | Django + Django REST Framework |
 | Database | PostgreSQL |
-| Authentication | JWT (`djangorestframework-simplejwt`) — *Phase 2* |
+| Authentication | JWT (`djangorestframework-simplejwt`), `flutter_secure_storage` |
 | Pronunciation assessment | Azure AI Speech, server-side only — *Phase 3* |
 | Feedback | Deterministic rules, with an optional LLM layer — *Phase 5* |
 
@@ -42,15 +42,18 @@ hear and speak/
 ├── backend/                 Django REST API
 │   ├── config/              settings, root URLs, WSGI/ASGI
 │   ├── apps/
-│   │   └── core/            health check + shared utilities
+│   │   ├── core/            health check + shared utilities
+│   │   └── accounts/        custom User, JWT auth, role permissions
 │   ├── requirements.txt
 │   └── .env.example         copy to .env and fill in
 ├── mobile/                  Flutter application
 │   └── lib/
-│       ├── core/            constants, theme, networking
+│       ├── core/            constants, theme, networking, secure storage
 │       ├── models/          plain data classes
 │       ├── repositories/    all API access lives here
+│       ├── providers/       Riverpod state controllers
 │       ├── routes/          go_router configuration
+│       ├── widgets/         shared UI components
 │       └── features/        one folder per screen area
 └── docs/                    project documentation
 ```
