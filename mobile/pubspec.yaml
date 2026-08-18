@@ -25,6 +25,9 @@ dependencies:
   # Secure token storage (Keystore on Android, Keychain on iOS)
   flutter_secure_storage: ^9.2.2
 
+  # Nunito, the typeface in the design system
+  google_fonts: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
