@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
-import '../../models/content.dart';
 import '../../providers/auth_provider.dart';
 import '../../repositories/content_repository.dart';
 import '../../repositories/profile_repository.dart';
@@ -80,10 +79,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     data: (items) => items.isEmpty
                         ? const _EmptyLessons()
-                        : _ModeGrid(
-                            lesson: items.first,
-                            languageCode: profile.languageCode,
-                          ),
+                        : _ModeGrid(languageCode: profile.languageCode),
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
@@ -178,10 +174,26 @@ class _StreakCard extends StatelessWidget {
 
 /// The four modes from the design: Learn, Listen, Speak (AI) and Quiz.
 class _ModeGrid extends StatelessWidget {
-  const _ModeGrid({required this.lesson, required this.languageCode});
+  const _ModeGrid({required this.languageCode});
 
-  final Lesson lesson;
   final String languageCode;
+
+  /// Every mode goes through the lesson picker. Jumping straight into the
+  /// first lesson made the rest of the content unreachable.
+  void _pickLesson(BuildContext context, String? mode) {
+    if (mode == null) {
+      context.pushNamed(
+        AppRoutes.learnLessonsName,
+        queryParameters: {'lang': languageCode},
+      );
+      return;
+    }
+    context.pushNamed(
+      AppRoutes.modeLessonsName,
+      pathParameters: {'mode': mode},
+      queryParameters: {'lang': languageCode},
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -201,11 +213,7 @@ class _ModeGrid extends StatelessWidget {
           icon: Icons.menu_book_rounded,
           tint: AppColors.amberSoft,
           accent: AppColors.amber,
-          onTap: () => context.pushNamed(
-            AppRoutes.learnName,
-            pathParameters: {'lessonId': '${lesson.id}'},
-            queryParameters: {'lang': languageCode},
-          ),
+          onTap: () => _pickLesson(context, null),
         ),
         _ModeCard(
           title: l10n.modeListen,
@@ -213,11 +221,7 @@ class _ModeGrid extends StatelessWidget {
           icon: Icons.headphones_rounded,
           tint: AppColors.blueSoft,
           accent: AppColors.blue,
-          onTap: () => context.pushNamed(
-            AppRoutes.listenName,
-            pathParameters: {'lessonId': '${lesson.id}'},
-            queryParameters: {'lang': languageCode},
-          ),
+          onTap: () => _pickLesson(context, 'listen'),
         ),
         _ModeCard(
           title: l10n.modeSpeak,
@@ -225,11 +229,7 @@ class _ModeGrid extends StatelessWidget {
           icon: Icons.mic_rounded,
           tint: AppColors.greenSoft,
           accent: AppColors.green,
-          onTap: () => context.pushNamed(
-            AppRoutes.speakName,
-            pathParameters: {'lessonId': '${lesson.id}'},
-            queryParameters: {'lang': languageCode},
-          ),
+          onTap: () => _pickLesson(context, 'speak'),
         ),
         _ModeCard(
           title: l10n.modeQuiz,
@@ -237,11 +237,7 @@ class _ModeGrid extends StatelessWidget {
           icon: Icons.help_outline_rounded,
           tint: AppColors.violetSoft,
           accent: AppColors.primary,
-          onTap: () => context.pushNamed(
-            AppRoutes.quizName,
-            pathParameters: {'lessonId': '${lesson.id}'},
-            queryParameters: {'lang': languageCode},
-          ),
+          onTap: () => _pickLesson(context, 'quiz'),
         ),
       ],
     );
