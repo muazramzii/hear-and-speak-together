@@ -236,5 +236,17 @@
   "rewardsEarned": "Diperoleh",
   "rewardsLocked": "Belum diperoleh",
   "rewardsNone": "Belum ada ganjaran. Teruskan berlatih!",
-  "rewardsCongratulations": "Tahniah!"
+  "rewardsCongratulations": "Tahniah!",
+  "studentsTitle": "Murid",
+  "studentsLink": "Pautkan murid",
+  "studentsLinkHelp": "Minta kod kongsi murid daripada keluarganya.",
+  "studentsShareCode": "Kod kongsi",
+  "studentsEmpty": "Belum ada murid. Pautkan seorang dengan kod kongsi.",
+  "studentsUnlink": "Nyahpaut",
+  "studentsUnlinked": "Murid telah dinyahpaut.",
+  "profileShareCode": "Kod kongsi",
+  "profileShareCodeHelp": "Berikan kod ini kepada guru supaya mereka boleh melihat kemajuan murid.",
+  "profileRegenerateCode": "Kod baharu",
+  "supervisorSectionTitle": "Murid anda",
+  "supervisorSectionBody": "Lihat kemajuan murid yang anda ikuti."
 }

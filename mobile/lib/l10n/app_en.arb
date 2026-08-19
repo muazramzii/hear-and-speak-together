@@ -236,5 +236,17 @@
   "rewardsEarned": "Earned",
   "rewardsLocked": "Not yet earned",
   "rewardsNone": "No rewards yet. Keep practising!",
-  "rewardsCongratulations": "Congratulations!"
+  "rewardsCongratulations": "Congratulations!",
+  "studentsTitle": "Students",
+  "studentsLink": "Link a student",
+  "studentsLinkHelp": "Ask the family for the learner's share code.",
+  "studentsShareCode": "Share code",
+  "studentsEmpty": "No students yet. Link one with their share code.",
+  "studentsUnlink": "Unlink",
+  "studentsUnlinked": "Student unlinked.",
+  "profileShareCode": "Share code",
+  "profileShareCodeHelp": "Give this to a teacher so they can follow this learner's progress.",
+  "profileRegenerateCode": "New code",
+  "supervisorSectionTitle": "Your students",
+  "supervisorSectionBody": "View progress for the learners you follow."
 }

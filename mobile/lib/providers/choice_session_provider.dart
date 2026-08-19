@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_exception.dart';
 import '../models/content.dart';
 import '../repositories/content_repository.dart';
+import '../repositories/practice_repository.dart';
+import '../repositories/profile_repository.dart';
 
 /// The two multiple-choice modes. They share all their logic and differ only
 /// in how the prompt is presented, so they share a controller rather than
@@ -33,6 +35,8 @@ class ChoiceSessionState {
     this.correctCount = 0,
     this.errorMessage,
     this.errorCode,
+    this.pointsAwarded,
+    this.newAchievements = const [],
   });
 
   final ChoiceStage stage;
@@ -49,6 +53,13 @@ class ChoiceSessionState {
 
   /// Client-side failure, translated by the widget.
   final ChoiceError? errorCode;
+
+  /// Confirmed by the server once the run is recorded. Null until then, or
+  /// if the submission failed.
+  final int? pointsAwarded;
+
+  /// Badge names unlocked by this run.
+  final List<String> newAchievements;
 
   bool get hasAnswered => selectedOptionId != null;
 
@@ -70,6 +81,8 @@ class ChoiceSessionState {
     int? correctCount,
     String? errorMessage,
     ChoiceError? errorCode,
+    int? pointsAwarded,
+    List<String>? newAchievements,
     bool clearSelection = false,
     bool clearError = false,
   }) {
@@ -84,6 +97,8 @@ class ChoiceSessionState {
       correctCount: correctCount ?? this.correctCount,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       errorCode: clearError ? null : (errorCode ?? this.errorCode),
+      pointsAwarded: pointsAwarded ?? this.pointsAwarded,
+      newAchievements: newAchievements ?? this.newAchievements,
     );
   }
 }
@@ -95,15 +110,26 @@ class ChoiceSessionController extends StateNotifier<ChoiceSessionState> {
     required this.lessonId,
     this.requestedRounds = 10,
     Random? random,
+    PracticeRepository? practiceRepository,
+    this.mode = ChoiceMode.quiz,
+    this.profileId,
   }) : _repository = repository,
+       _practiceRepository = practiceRepository,
        _random = random ?? Random(),
        super(const ChoiceSessionState()) {
     start();
   }
 
   final ContentRepository _repository;
+
+  /// Null in tests that only exercise round handling.
+  final PracticeRepository? _practiceRepository;
   final int lessonId;
   final int requestedRounds;
+  final ChoiceMode mode;
+
+  /// Null when no learner is selected; the session then runs without scoring.
+  final int? profileId;
   final Random _random;
 
   List<Word> _queue = const [];
@@ -178,10 +204,42 @@ class ChoiceSessionController extends StateNotifier<ChoiceSessionState> {
     final nextIndex = state.roundNumber; // roundNumber is 1-based
     if (nextIndex >= _queue.length) {
       state = state.copyWith(stage: ChoiceStage.finished);
+      await _submitResult();
       return;
     }
     await _loadRound(nextIndex);
   }
+
+  /// Persists the tally once, at the end of a run.
+  ///
+  /// A failure here is swallowed on purpose: the child has finished and is
+  /// looking at their score, and an error banner over a trophy would punish
+  /// them for a network problem. The points are lost, not the session.
+  Future<void> _submitResult() async {
+    final repository = _practiceRepository;
+    final profile = profileId;
+    if (repository == null || profile == null || _submitted) return;
+
+    _submitted = true;
+
+    try {
+      final outcome = await repository.submitQuizResult(
+        profileId: profile,
+        lessonId: lessonId,
+        mode: mode == ChoiceMode.listen ? 'LISTEN' : 'QUIZ',
+        correctCount: state.correctCount,
+        totalRounds: state.totalRounds,
+      );
+      state = state.copyWith(
+        pointsAwarded: outcome.pointsAwarded,
+        newAchievements: outcome.newAchievements,
+      );
+    } on ApiException {
+      // Score already shown; nothing useful to tell the child here.
+    }
+  }
+
+  bool _submitted = false;
 
   /// Stars earned: one per correct answer, matching the "+10" style reward
   /// shown after a correct choice in the design.
@@ -212,6 +270,9 @@ final choiceSessionProvider = StateNotifierProvider.autoDispose
     ) {
       return ChoiceSessionController(
         repository: ref.watch(contentRepositoryProvider),
+        practiceRepository: ref.watch(practiceRepositoryProvider),
         lessonId: args.lessonId,
+        mode: args.mode,
+        profileId: ref.read(activeProfileProvider)?.id,
       );
     });

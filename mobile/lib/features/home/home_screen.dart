@@ -64,6 +64,14 @@ class HomeScreen extends ConsumerWidget {
                   _StreakCard(streakDays: profile.streakDays),
                   const SizedBox(height: AppSpacing.lg),
 
+                  // Only parents and teachers can monitor learners, so the
+                  // entry point only exists for them.
+                  if (ref.watch(currentUserProvider)?.role.supervisesStudents ??
+                      false) ...[
+                    const _SupervisorCard(),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+
                   lessons.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(AppSpacing.xl),
@@ -126,6 +134,53 @@ class HomeScreen extends ConsumerWidget {
       ref.read(activeProfileProvider.notifier).state = null;
       await ref.read(authControllerProvider.notifier).logout();
     }
+  }
+}
+
+class _SupervisorCard extends StatelessWidget {
+  const _SupervisorCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Material(
+      color: AppColors.blueSoft,
+      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      child: InkWell(
+        onTap: () => context.pushNamed(AppRoutes.studentsName),
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              const Icon(Icons.groups_rounded, color: AppColors.blue, size: 32),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.supervisorSectionTitle,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      l10n.supervisorSectionBody,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

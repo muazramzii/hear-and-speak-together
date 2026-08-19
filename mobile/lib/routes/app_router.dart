@@ -16,6 +16,8 @@ import '../features/quiz/choice_round_screen.dart';
 import '../features/rewards/rewards_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/app_shell.dart';
+import '../features/students/student_detail_screen.dart';
+import '../features/students/students_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/choice_session_provider.dart';
 import '../repositories/profile_repository.dart';
@@ -54,6 +56,10 @@ class AppRoutes {
   static const String rewards = '/rewards';
   static const String settings = '/settings';
 
+  // Parent/teacher views, pushed from Home.
+  static const String students = 'students';
+  static const String studentDetail = 'students/:profileId';
+
   // Lesson pickers, pushed from the home mode grid.
   static const String learnLessons = 'learn-lessons';
   static const String modeLessons = 'lessons/:mode';
@@ -73,6 +79,8 @@ class AppRoutes {
   static const String progressName = 'progress';
   static const String rewardsName = 'rewards';
   static const String settingsName = 'settings';
+  static const String studentsName = 'students';
+  static const String studentDetailName = 'student-detail';
   static const String learnLessonsName = 'learn-lessons';
   static const String modeLessonsName = 'mode-lessons';
   static const String learnName = 'learn';
@@ -146,6 +154,24 @@ final routerProvider = Provider<GoRouter>((ref) {
                 name: AppRoutes.homeName,
                 builder: (context, state) => const HomeScreen(),
                 routes: [
+                  GoRoute(
+                    path: AppRoutes.students,
+                    name: AppRoutes.studentsName,
+                    builder: (context, state) => const StudentsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':profileId',
+                        name: AppRoutes.studentDetailName,
+                        builder: (context, state) => StudentDetailScreen(
+                          profileId:
+                              int.tryParse(
+                                state.pathParameters['profileId'] ?? '',
+                              ) ??
+                              0,
+                        ),
+                      ),
+                    ],
+                  ),
                   GoRoute(
                     path: AppRoutes.learnLessons,
                     name: AppRoutes.learnLessonsName,
