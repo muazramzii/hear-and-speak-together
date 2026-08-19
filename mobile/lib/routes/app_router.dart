@@ -7,9 +7,22 @@ import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/learn/learn_screen.dart';
+import '../features/practice/speak_lesson_screen.dart';
 import '../features/profiles/profile_picker_screen.dart';
+import '../features/quiz/choice_round_screen.dart';
 import '../providers/auth_provider.dart';
+import '../providers/choice_session_provider.dart';
 import '../repositories/profile_repository.dart';
+
+/// Route parameters arrive as strings; a malformed one must not crash the app.
+int _lessonId(GoRouterState state) {
+  return int.tryParse(state.pathParameters['lessonId'] ?? '') ?? 0;
+}
+
+String _languageCode(GoRouterState state) {
+  return state.uri.queryParameters['lang'] ?? 'en';
+}
 
 /// Route paths and names, so navigation never uses raw strings.
 class AppRoutes {
@@ -22,12 +35,22 @@ class AppRoutes {
   static const String home = '/home';
   static const String connection = '/connection';
 
+  // Lesson-scoped mode screens, pushed from the home mode grid.
+  static const String learn = '/learn/:lessonId';
+  static const String listen = '/listen/:lessonId';
+  static const String speak = '/speak/:lessonId';
+  static const String quiz = '/quiz/:lessonId';
+
   static const String splashName = 'splash';
   static const String loginName = 'login';
   static const String registerName = 'register';
   static const String profilesName = 'profiles';
   static const String homeName = 'home';
   static const String connectionName = 'connection';
+  static const String learnName = 'learn';
+  static const String listenName = 'listen';
+  static const String speakName = 'speak';
+  static const String quizName = 'quiz';
 }
 
 /// Bridges a Riverpod [StateNotifier] to go_router's `refreshListenable`, so
@@ -86,6 +109,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         name: AppRoutes.homeName,
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.learn,
+        name: AppRoutes.learnName,
+        builder: (context, state) => LearnScreen(
+          lessonId: _lessonId(state),
+          languageCode: _languageCode(state),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.listen,
+        name: AppRoutes.listenName,
+        builder: (context, state) => ChoiceRoundScreen(
+          lessonId: _lessonId(state),
+          mode: ChoiceMode.listen,
+          languageCode: _languageCode(state),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.speak,
+        name: AppRoutes.speakName,
+        builder: (context, state) => SpeakLessonScreen(
+          lessonId: _lessonId(state),
+          languageCode: _languageCode(state),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.quiz,
+        name: AppRoutes.quizName,
+        builder: (context, state) => ChoiceRoundScreen(
+          lessonId: _lessonId(state),
+          mode: ChoiceMode.quiz,
+          languageCode: _languageCode(state),
+        ),
       ),
       GoRoute(
         // A developer aid, not part of the child-facing flow.

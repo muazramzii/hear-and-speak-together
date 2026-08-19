@@ -300,8 +300,93 @@ never disagree with the point total.
 
 ---
 
+## Practice
+
+### `POST /api/practice/evaluate/`
+
+Authenticated. **Multipart form data**, not JSON.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `word_id` | int | Must be an active word |
+| `profile_id` | int | Must belong to the signed-in account |
+| `audio` | file | Non-empty, max 5 MB. 16 kHz mono WAV preferred |
+
+Response `200`:
+
+```json
+{
+  "attempt_id": 12,
+  "reference_text": "bola",
+  "recognized_text": "bola",
+  "language": "ms",
+  "locale": "ms-MY",
+  "heard_speech": true,
+  "score": 88,
+  "scores": {
+    "pronunciation": 88.0, "accuracy": 85.0, "fluency": 90.0,
+    "completeness": 100.0, "prosody": null
+  },
+  "available_metrics": ["accuracy", "fluency", "completeness", "pronunciation"],
+  "error_type": null,
+  "feedback": "Syabas! Sebutan anda semakin baik!",
+  "tips": [
+    { "metric": "accuracy", "tone": "positive", "text": "Sebutan jelas" }
+  ],
+  "points_awarded": 7,
+  "profile": { "id": 1, "points": 237, "level": 3, "streak_days": 7 },
+  "can_retry": true
+}
+```
+
+**Reading `scores` correctly matters.** A `null` means *not measured for this
+locale* — never zero. `available_metrics` lists what the locale can measure at
+all; anything absent must not be rendered, even as "unavailable". For `ms-MY`
+that means no intonation row, because Azure does not assess prosody there.
+
+`heard_speech: false` means the recording contained nothing recognisable.
+That is a normal outcome, not an error: the attempt is still stored (useful
+information for a parent), `score` is `null`, and 0 points are awarded.
+
+Returns `503` with `{"detail": "...", "can_retry": true}` when assessment is
+unavailable. The `detail` is always safe to show a child — Azure's technical
+reason is logged server-side only.
+
+`400` for an empty/oversized recording, an unknown word, or a profile the
+caller does not own. Validation happens **before** any paid API call.
+
+### `GET /api/attempts/` · `GET /api/attempts/{id}/`
+
+Paginated history, scoped to the signed-in account's own children. Filter with
+`?profile={id}` or `?word={id}`. Another account's attempt returns `404`.
+
+---
+
+## Feedback: two layers
+
+**Layer 1 — deterministic.** Always present, no API call, no cost. A score band
+maps to a sentence in the practice language (`Syabas!` / `Good job!`), plus
+per-metric tips carrying a `tone` (`positive` | `suggestion`) so meaning
+survives without colour.
+
+**Layer 2 — optional LLM.** Off by default (`ENABLE_AI_FEEDBACK=False`). When
+enabled, `AI_PROVIDER` selects `gemini`, `openai` or `mock`, and the model
+rewrites layer 1 into warmer wording.
+
+The LLM **never produces or adjusts a score**. Pronunciation scoring is
+acoustic and comes from Azure; an LLM only sees text and could not measure it.
+Every failure path — timeout, quota, bad key, unexpected payload, unusable
+output, even an unhandled exception — falls back to layer 1. No attempt can
+fail because a provider is down, and no LLM call is made when nothing was
+heard.
+
+The prompt carries only the word, language, scores and error type. No name, no
+email, no account id, no audio.
+
+---
+
 ## Not yet implemented
 
-Practice evaluation, attempts, progress, dashboard, achievements and the
-parent/teacher student endpoints arrive in later phases and are documented
-here once they exist.
+Progress aggregates, the dashboard, achievements and the parent/teacher
+student endpoints arrive in later phases and are documented here once they
+exist.
