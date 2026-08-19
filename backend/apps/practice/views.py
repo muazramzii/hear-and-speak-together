@@ -12,6 +12,7 @@ from .models import PracticeAttempt
 from .serializers import AttemptSerializer, EvaluateRequestSerializer
 from .services import feedback as feedback_engine
 from .services.base import AssessmentError
+from .services.ai.factory import get_ai_service
 from .services.evaluation import PracticeEvaluationService
 from .services.factory import get_pronunciation_service
 
@@ -37,7 +38,12 @@ class EvaluatePracticeView(APIView):
         profile = serializer.context["profile"]
         language = word.lesson.category.language
 
-        service = PracticeEvaluationService(get_pronunciation_service())
+        service = PracticeEvaluationService(
+            get_pronunciation_service(),
+            # None unless ENABLE_AI_FEEDBACK is on, so the default path makes
+            # no LLM call at all.
+            ai_service=get_ai_service(),
+        )
 
         try:
             attempt, result = service.evaluate(

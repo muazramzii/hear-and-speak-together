@@ -206,6 +206,8 @@ SPEECH_PROVIDER = env_str("SPEECH_PROVIDER", default="mock")
 
 AI_PROVIDER = env_str("AI_PROVIDER", default="mock")
 AI_API_KEY = env_str("AI_API_KEY", default="")
+# Blank falls back to the provider's default model (see ai/factory.py).
+AI_MODEL = env_str("AI_MODEL", default="")
 
 ENABLE_AI_FEEDBACK = env_bool("ENABLE_AI_FEEDBACK", default=False)
 STORE_AUDIO = env_bool("STORE_AUDIO", default=False)
