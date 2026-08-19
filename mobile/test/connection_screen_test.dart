@@ -76,10 +76,11 @@ void main() {
       await tester.pumpWidget(
         _harness(
           _FakeHealthRepository(
-            () async => throw const ApiException(
-              kind: ApiErrorKind.network,
-              message: 'Could not reach the server.',
-            ),
+            () async =>
+                throw const ApiException(
+                  kind: ApiErrorKind.network,
+                  message: 'Could not reach the server.',
+                ),
           ),
         ),
       );

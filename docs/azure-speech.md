@@ -177,13 +177,56 @@ availability and the UI can hide a button that would do nothing.
 The Azure integration has been built against the documented API and exercised
 through the mock. It has **not** been run against a real Azure subscription.
 
-To try it:
+There is a command for exactly this, so the first live call is a deliberate
+check rather than a demo that either works or doesn't:
+
+```bash
+python manage.py check_azure
+```
+
+With no arguments it sends **one second of silence**. Azure should answer *"no
+speech recognised"* — and here that is a **success**: reaching that answer
+proves the key, the region, the locale and the audio format were all accepted.
+Only the recognition failed, deliberately.
+
+```
+Configuration
+  SPEECH_PROVIDER      azure
+  AZURE_SPEECH_KEY     set, ends 'a1b2'
+  AZURE_SPEECH_REGION  southeastasia
+  locale               en-US
+
+Calling Azure (en-US, reference 'elephant')...
+  OK  Azure answered 'no speech recognised', which is exactly right for silence.
+  OK  Credentials, region, locale and audio format are all accepted.
+```
+
+The key is never printed in full — only the last four characters, enough to
+tell two keys apart.
+
+To score real speech, pass a recording:
+
+```bash
+python manage.py check_azure --audio recording.wav --word elephant
+```
+
+```bash
+python manage.py check_azure --locale ms-MY --word bola --audio bola.wav
+```
+
+That prints every metric and marks the ones the locale did not measure. It
+also **checks the stored capability flag against reality**: if the database
+says `ms-MY` has no prosody and Azure returns one anyway (or vice versa), it
+says so and tells you to update `Language.supports_prosody` and
+`capabilities_verified_on`. The whole capability layer rests on that claim, so
+this is where it gets tested for real rather than assumed.
+
+Steps:
 
 1. Create a Speech resource in the Azure portal.
 2. Put the key and region in `backend/.env` (never in `.env.example` — the
    repository is public).
-3. Set `SPEECH_PROVIDER=azure`.
-4. Practise one word and check the server log.
+3. Run `check_azure`.
+4. Set `SPEECH_PROVIDER=azure` once it passes.
 
-Expect to verify: the region matches the key, the audio format is accepted, and
-`ms-MY` returns `null` prosody as documented. Do this well before any demo.
+Do this well before any demo, not the night before.

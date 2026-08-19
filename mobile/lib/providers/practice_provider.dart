@@ -67,9 +67,8 @@ class PracticeState {
       stage: stage ?? this.stage,
       result: clearResult ? null : (result ?? this.result),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      recordingFailure: clearError
-          ? null
-          : (recordingFailure ?? this.recordingFailure),
+      recordingFailure:
+          clearError ? null : (recordingFailure ?? this.recordingFailure),
       permissionDenied: permissionDenied ?? this.permissionDenied,
     );
   }

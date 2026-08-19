@@ -60,12 +60,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           tooltip: 'Back to sign in',
-          onPressed: busy
-              ? null
-              : () {
-                  ref.read(authControllerProvider.notifier).clearError();
-                  context.goNamed(AppRoutes.loginName);
-                },
+          onPressed:
+              busy
+                  ? null
+                  : () {
+                    ref.read(authControllerProvider.notifier).clearError();
+                    context.goNamed(AppRoutes.loginName);
+                  },
         ),
       ),
       body: SafeArea(
@@ -103,10 +104,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.name],
                       enabled: !busy,
-                      validator: (value) =>
-                          (value?.trim().isEmpty ?? true)
-                          ? 'Please enter a name.'
-                          : null,
+                      validator:
+                          (value) =>
+                              (value?.trim().isEmpty ?? true)
+                                  ? 'Please enter a name.'
+                                  : null,
                     ),
                     const SizedBox(height: AppSpacing.md),
 
@@ -151,12 +153,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ? Icons.visibility_off_rounded
                               : Icons.visibility_rounded,
                         ),
-                        tooltip: _obscurePassword
-                            ? 'Show password'
-                            : 'Hide password',
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
+                        tooltip:
+                            _obscurePassword
+                                ? 'Show password'
+                                : 'Hide password',
+                        onPressed:
+                            () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -187,28 +191,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     _LanguageSelector(
                       value: _language,
                       enabled: !busy,
-                      onChanged: (language) =>
-                          setState(() => _language = language),
+                      onChanged:
+                          (language) => setState(() => _language = language),
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
                     FilledButton(
                       onPressed: busy ? null : _submit,
-                      child: busy
-                          ? const Text('Creating account...')
-                          : const Text('Create Account'),
+                      child:
+                          busy
+                              ? const Text('Creating account...')
+                              : const Text('Create Account'),
                     ),
                     const SizedBox(height: AppSpacing.sm),
 
                     TextButton(
-                      onPressed: busy
-                          ? null
-                          : () {
-                              ref
-                                  .read(authControllerProvider.notifier)
-                                  .clearError();
-                              context.goNamed(AppRoutes.loginName);
-                            },
+                      onPressed:
+                          busy
+                              ? null
+                              : () {
+                                ref
+                                    .read(authControllerProvider.notifier)
+                                    .clearError();
+                                context.goNamed(AppRoutes.loginName);
+                              },
                       child: const Text('Already have an account? Sign in'),
                     ),
                   ],
@@ -257,9 +263,8 @@ class _RoleSelector extends StatelessWidget {
               ButtonSegment(value: entry.key, label: Text(entry.value)),
           ],
           selected: {value},
-          onSelectionChanged: enabled
-              ? (selection) => onChanged(selection.first)
-              : null,
+          onSelectionChanged:
+              enabled ? (selection) => onChanged(selection.first) : null,
           showSelectedIcon: false,
         ),
       ],
@@ -296,9 +301,8 @@ class _LanguageSelector extends StatelessWidget {
               ButtonSegment(value: language, label: Text(language.label)),
           ],
           selected: {value},
-          onSelectionChanged: enabled
-              ? (selection) => onChanged(selection.first)
-              : null,
+          onSelectionChanged:
+              enabled ? (selection) => onChanged(selection.first) : null,
           showSelectedIcon: false,
         ),
       ],

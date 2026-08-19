@@ -91,10 +91,7 @@ void main() {
     });
 
     test('includes the answer among the options', () {
-      expect(
-        round.options.map((o) => o.id),
-        contains(round.correctOptionId),
-      );
+      expect(round.options.map((o) => o.id), contains(round.correctOptionId));
     });
   });
 

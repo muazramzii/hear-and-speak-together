@@ -34,7 +34,11 @@ class ChoiceRoundScreen extends ConsumerWidget {
     final controller = ref.read(choiceSessionProvider(args).notifier);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isListen ? context.l10n.listenTitle : context.l10n.quizTitle)),
+      appBar: AppBar(
+        title: Text(
+          _isListen ? context.l10n.listenTitle : context.l10n.quizTitle,
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -126,9 +130,10 @@ class _RoundView extends ConsumerWidget {
 
           Center(
             child: _SpeakerButton(
-              onPressed: () => ref
-                  .read(wordSpeakerProvider)
-                  .speak(round.word.text, languageCode: languageCode),
+              onPressed:
+                  () => ref
+                      .read(wordSpeakerProvider)
+                      .speak(round.word.text, languageCode: languageCode),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -158,10 +163,10 @@ class _RoundView extends ConsumerWidget {
             FilledButton(
               onPressed: onNext,
               child: Text(
-              state.isLastRound
-                  ? context.l10n.choiceFinish
-                  : context.l10n.choiceNext,
-            ),
+                state.isLastRound
+                    ? context.l10n.choiceFinish
+                    : context.l10n.choiceNext,
+              ),
             ),
           ],
         ],
@@ -187,10 +192,7 @@ class _ProgressHeader extends StatelessWidget {
     return Column(
       children: [
         Text(
-          context.l10n.choiceQuestionOf(
-            state.roundNumber,
-            state.totalRounds,
-          ),
+          context.l10n.choiceQuestionOf(state.roundNumber, state.totalRounds),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -225,11 +227,7 @@ class _SpeakerButton extends StatelessWidget {
           child: const SizedBox(
             height: 72,
             width: 72,
-            child: Icon(
-              Icons.volume_up_rounded,
-              size: 34,
-              color: Colors.white,
-            ),
+            child: Icon(Icons.volume_up_rounded, size: 34, color: Colors.white),
           ),
         ),
       ),
@@ -301,12 +299,7 @@ class _OptionTile extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
-                if (icon != null)
-                  Icon(
-                    icon,
-                    color: border,
-                    size: 22,
-                  ),
+                if (icon != null) Icon(icon, color: border, size: 22),
               ],
             ),
           ),

@@ -144,8 +144,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // The signed-in shell. Each branch keeps its own stack, so leaving a
       // lesson for the Progress tab and coming back returns to the lesson.
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            AppShell(navigationShell: navigationShell),
+        builder:
+            (context, state, navigationShell) =>
+                AppShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -162,64 +163,71 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: ':profileId',
                         name: AppRoutes.studentDetailName,
-                        builder: (context, state) => StudentDetailScreen(
-                          profileId:
-                              int.tryParse(
-                                state.pathParameters['profileId'] ?? '',
-                              ) ??
-                              0,
-                        ),
+                        builder:
+                            (context, state) => StudentDetailScreen(
+                              profileId:
+                                  int.tryParse(
+                                    state.pathParameters['profileId'] ?? '',
+                                  ) ??
+                                  0,
+                            ),
                       ),
                     ],
                   ),
                   GoRoute(
                     path: AppRoutes.learnLessons,
                     name: AppRoutes.learnLessonsName,
-                    builder: (context, state) => LearnLessonListScreen(
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => LearnLessonListScreen(
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                   GoRoute(
                     path: AppRoutes.modeLessons,
                     name: AppRoutes.modeLessonsName,
-                    builder: (context, state) => LessonListScreen(
-                      mode: _choiceMode(state),
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => LessonListScreen(
+                          mode: _choiceMode(state),
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                   GoRoute(
                     path: AppRoutes.learn,
                     name: AppRoutes.learnName,
-                    builder: (context, state) => LearnScreen(
-                      lessonId: _lessonId(state),
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => LearnScreen(
+                          lessonId: _lessonId(state),
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                   GoRoute(
                     path: AppRoutes.listen,
                     name: AppRoutes.listenName,
-                    builder: (context, state) => ChoiceRoundScreen(
-                      lessonId: _lessonId(state),
-                      mode: ChoiceMode.listen,
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => ChoiceRoundScreen(
+                          lessonId: _lessonId(state),
+                          mode: ChoiceMode.listen,
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                   GoRoute(
                     path: AppRoutes.speak,
                     name: AppRoutes.speakName,
-                    builder: (context, state) => SpeakLessonScreen(
-                      lessonId: _lessonId(state),
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => SpeakLessonScreen(
+                          lessonId: _lessonId(state),
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                   GoRoute(
                     path: AppRoutes.quiz,
                     name: AppRoutes.quizName,
-                    builder: (context, state) => ChoiceRoundScreen(
-                      lessonId: _lessonId(state),
-                      mode: ChoiceMode.quiz,
-                      languageCode: _languageCode(state),
-                    ),
+                    builder:
+                        (context, state) => ChoiceRoundScreen(
+                          lessonId: _lessonId(state),
+                          mode: ChoiceMode.quiz,
+                          languageCode: _languageCode(state),
+                        ),
                   ),
                 ],
               ),

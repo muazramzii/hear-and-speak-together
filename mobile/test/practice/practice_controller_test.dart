@@ -23,7 +23,12 @@ PracticeResult _result({int score = 82}) {
       'completeness': 100,
       'prosody': null,
     },
-    'available_metrics': ['accuracy', 'fluency', 'completeness', 'pronunciation'],
+    'available_metrics': [
+      'accuracy',
+      'fluency',
+      'completeness',
+      'pronunciation',
+    ],
     'error_type': null,
     'feedback': 'Good job!',
     'tips': [],
@@ -122,26 +127,28 @@ void main() {
       expect(controller.state.isBusy, isTrue);
     });
 
-    test('a denied microphone is reported as such, not as a generic error', () async {
-      final recorder = _FakeRecorder()
-        ..startFailure = RecordingFailure.permissionDenied;
-      final controller = _controller(recorder, _FakeRepository());
+    test(
+      'a denied microphone is reported as such, not as a generic error',
+      () async {
+        final recorder =
+            _FakeRecorder()..startFailure = RecordingFailure.permissionDenied;
+        final controller = _controller(recorder, _FakeRepository());
 
-      await controller.startRecording();
+        await controller.startRecording();
 
-      expect(controller.state.stage, PracticeStage.error);
-      expect(controller.state.permissionDenied, isTrue);
-      // Carried as an enum so the widget can translate it; a sentence here
-      // would be stuck in one language.
-      expect(
-        controller.state.recordingFailure,
-        RecordingFailure.permissionDenied,
-      );
-    });
+        expect(controller.state.stage, PracticeStage.error);
+        expect(controller.state.permissionDenied, isTrue);
+        // Carried as an enum so the widget can translate it; a sentence here
+        // would be stuck in one language.
+        expect(
+          controller.state.recordingFailure,
+          RecordingFailure.permissionDenied,
+        );
+      },
+    );
 
     test('a too-short clip explains what to do differently', () async {
-      final recorder = _FakeRecorder()
-        ..stopFailure = RecordingFailure.tooShort;
+      final recorder = _FakeRecorder()..stopFailure = RecordingFailure.tooShort;
       final repo = _FakeRepository();
       final controller = _controller(recorder, repo);
 
@@ -205,11 +212,12 @@ void main() {
 
     test('the recording is discarded even when the upload fails', () async {
       final recorder = _FakeRecorder();
-      final repo = _FakeRepository()
-        ..error = const ApiException(
-          kind: ApiErrorKind.network,
-          message: 'Could not reach the server.',
-        );
+      final repo =
+          _FakeRepository()
+            ..error = const ApiException(
+              kind: ApiErrorKind.network,
+              message: 'Could not reach the server.',
+            );
       final controller = _controller(recorder, repo);
 
       await controller.startRecording();
@@ -220,18 +228,23 @@ void main() {
     });
 
     test('a backend outage surfaces its child-safe message', () async {
-      final repo = _FakeRepository()
-        ..error = const ApiException(
-          kind: ApiErrorKind.server,
-          statusCode: 503,
-          message: 'Speech assessment is temporarily unavailable. Please try again.',
-        );
+      final repo =
+          _FakeRepository()
+            ..error = const ApiException(
+              kind: ApiErrorKind.server,
+              statusCode: 503,
+              message:
+                  'Speech assessment is temporarily unavailable. Please try again.',
+            );
       final controller = _controller(_FakeRecorder(), repo);
 
       await controller.startRecording();
       await controller.stopAndEvaluate(wordId: 1, profileId: 1);
 
-      expect(controller.state.errorMessage, contains('temporarily unavailable'));
+      expect(
+        controller.state.errorMessage,
+        contains('temporarily unavailable'),
+      );
     });
 
     test('evaluating without recording first does nothing', () async {

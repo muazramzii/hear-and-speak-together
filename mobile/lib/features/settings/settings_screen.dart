@@ -45,9 +45,10 @@ class SettingsScreen extends ConsumerWidget {
                     ],
                     selected: {locale?.languageCode ?? 'en'},
                     showSelectedIcon: false,
-                    onSelectionChanged: (selection) => ref
-                        .read(localeControllerProvider.notifier)
-                        .setLocale(Locale(selection.first)),
+                    onSelectionChanged:
+                        (selection) => ref
+                            .read(localeControllerProvider.notifier)
+                            .setLocale(Locale(selection.first)),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -67,8 +68,8 @@ class SettingsScreen extends ConsumerWidget {
                         TextButton(
                           // Changed on the profile itself, since it belongs to
                           // the learner rather than the device.
-                          onPressed: () =>
-                              context.goNamed(AppRoutes.profilesName),
+                          onPressed:
+                              () => context.goNamed(AppRoutes.profilesName),
                           child: Text(l10n.homeSwitchProfile),
                         ),
                       ],
@@ -93,20 +94,21 @@ class SettingsScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final shouldSignOut = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.authSignOutConfirmTitle),
-        content: Text(l10n.authSignOutConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.actionCancel),
+      builder:
+          (dialogContext) => AlertDialog(
+            title: Text(l10n.authSignOutConfirmTitle),
+            content: Text(l10n.authSignOutConfirmBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(l10n.actionCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(l10n.authSignOut),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.authSignOut),
-          ),
-        ],
-      ),
     );
 
     if (shouldSignOut ?? false) {

@@ -36,29 +36,33 @@ class ConnectionScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       child: health.when(
-                        loading: () => const _StatusBlock(
-                          icon: null,
-                          title: 'Checking connection...',
-                          detail: 'Contacting the Hear & Speak server.',
-                          tone: _Tone.neutral,
-                        ),
-                        error: (error, _) => _StatusBlock(
-                          icon: Icons.wifi_off_rounded,
-                          title: 'Backend Connection Failed',
-                          detail: error is ApiException
-                              ? error.message
-                              : 'Something went wrong. Please try again.',
-                          tone: _Tone.error,
-                        ),
+                        loading:
+                            () => const _StatusBlock(
+                              icon: null,
+                              title: 'Checking connection...',
+                              detail: 'Contacting the Hear & Speak server.',
+                              tone: _Tone.neutral,
+                            ),
+                        error:
+                            (error, _) => _StatusBlock(
+                              icon: Icons.wifi_off_rounded,
+                              title: 'Backend Connection Failed',
+                              detail:
+                                  error is ApiException
+                                      ? error.message
+                                      : 'Something went wrong. Please try again.',
+                              tone: _Tone.error,
+                            ),
                         data: (status) => _resultBlock(status),
                       ),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   FilledButton.icon(
-                    onPressed: health.isLoading
-                        ? null
-                        : () => ref.invalidate(healthStatusProvider),
+                    onPressed:
+                        health.isLoading
+                            ? null
+                            : () => ref.invalidate(healthStatusProvider),
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Check again'),
                   ),
@@ -93,9 +97,10 @@ class ConnectionScreen extends ConsumerWidget {
     return _StatusBlock(
       icon: Icons.error_outline_rounded,
       title: 'Backend Connection Failed',
-      detail: status.isDatabaseConnected
-          ? status.message
-          : 'The API is running but cannot reach the database.',
+      detail:
+          status.isDatabaseConnected
+              ? status.message
+              : 'The API is running but cannot reach the database.',
       tone: _Tone.error,
     );
   }
@@ -167,9 +172,10 @@ class _StatusBlock extends StatelessWidget {
         SizedBox(
           height: 48,
           width: 48,
-          child: icon == null
-              ? const CircularProgressIndicator(strokeWidth: 3)
-              : Icon(icon, size: 48, color: _color),
+          child:
+              icon == null
+                  ? const CircularProgressIndicator(strokeWidth: 3)
+                  : Icon(icon, size: 48, color: _color),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(

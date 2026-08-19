@@ -60,9 +60,7 @@ class _EmojiOrIcon extends StatelessWidget {
     // Hidden from screen readers: the surrounding tile already announces the
     // word, and hearing "cat face" over it is noise.
     return ExcludeSemantics(
-      child: Center(
-        child: Text(word.emoji, style: TextStyle(fontSize: size)),
-      ),
+      child: Center(child: Text(word.emoji, style: TextStyle(fontSize: size))),
     );
   }
 }

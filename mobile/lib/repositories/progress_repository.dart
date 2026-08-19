@@ -30,8 +30,9 @@ class ProgressRepository {
       );
       return (response.data ?? const [])
           .map(
-            (item) =>
-                AchievementBadge.fromJson((item as Map).cast<String, dynamic>()),
+            (item) => AchievementBadge.fromJson(
+              (item as Map).cast<String, dynamic>(),
+            ),
           )
           .toList();
     } on DioException catch (error) {

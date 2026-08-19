@@ -26,17 +26,14 @@ class AuthRepository {
     required UserRole role,
     required AppLanguage preferredLanguage,
   }) async {
-    return _authenticate(
-      ApiConstants.authRegister,
-      {
-        'name': name.trim(),
-        'email': email.trim(),
-        'password': password,
-        'password_confirm': passwordConfirm,
-        'role': role.value,
-        'preferred_language': preferredLanguage.code,
-      },
-    );
+    return _authenticate(ApiConstants.authRegister, {
+      'name': name.trim(),
+      'email': email.trim(),
+      'password': password,
+      'password_confirm': passwordConfirm,
+      'role': role.value,
+      'preferred_language': preferredLanguage.code,
+    });
   }
 
   Future<AuthSession> login({

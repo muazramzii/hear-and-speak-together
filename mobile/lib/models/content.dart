@@ -23,7 +23,8 @@ class LanguageCapabilities {
 
   factory LanguageCapabilities.fromJson(Map<String, dynamic> json) {
     return LanguageCapabilities(
-      pronunciationAssessment: json['pronunciation_assessment'] as bool? ?? false,
+      pronunciationAssessment:
+          json['pronunciation_assessment'] as bool? ?? false,
       prosody: json['prosody'] as bool? ?? false,
       phonemeNames: json['phoneme_names'] as bool? ?? false,
       syllableScores: json['syllable_scores'] as bool? ?? false,
@@ -188,9 +189,10 @@ class QuizRound {
   factory QuizRound.fromJson(Map<String, dynamic> json) {
     return QuizRound(
       word: Word.fromJson((json['word'] as Map).cast<String, dynamic>()),
-      options: (json['options'] as List)
-          .map((o) => Word.fromJson((o as Map).cast<String, dynamic>()))
-          .toList(),
+      options:
+          (json['options'] as List)
+              .map((o) => Word.fromJson((o as Map).cast<String, dynamic>()))
+              .toList(),
       correctOptionId: json['correct_option_id'] as int,
     );
   }

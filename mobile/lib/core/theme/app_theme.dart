@@ -193,9 +193,10 @@ class AppTheme {
           (states) => GoogleFonts.nunito(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: states.contains(WidgetState.selected)
-                ? AppColors.primary
-                : AppColors.textSecondary,
+            color:
+                states.contains(WidgetState.selected)
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
           ),
         ),
       ),

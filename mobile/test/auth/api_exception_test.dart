@@ -7,11 +7,7 @@ DioException _badResponse(int status, dynamic body) {
   return DioException(
     requestOptions: request,
     type: DioExceptionType.badResponse,
-    response: Response(
-      requestOptions: request,
-      statusCode: status,
-      data: body,
-    ),
+    response: Response(requestOptions: request, statusCode: status, data: body),
   );
 }
 

@@ -24,9 +24,7 @@ class HomeScreen extends ConsumerWidget {
       return const Scaffold(body: SizedBox.shrink());
     }
 
-    final lessons = ref.watch(
-      lessonsForLanguageProvider(profile.languageCode),
-    );
+    final lessons = ref.watch(lessonsForLanguageProvider(profile.languageCode));
 
     return Scaffold(
       appBar: AppBar(
@@ -73,21 +71,29 @@ class HomeScreen extends ConsumerWidget {
                   ],
 
                   lessons.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(AppSpacing.xl),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                    error: (error, _) => _ErrorCard(
-                      message: error is ApiException
-                          ? error.message
-                          : l10n.errorGeneric,
-                      onRetry: () => ref.invalidate(
-                        lessonsForLanguageProvider(profile.languageCode),
-                      ),
-                    ),
-                    data: (items) => items.isEmpty
-                        ? const _EmptyLessons()
-                        : _ModeGrid(languageCode: profile.languageCode),
+                    loading:
+                        () => const Padding(
+                          padding: EdgeInsets.all(AppSpacing.xl),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                    error:
+                        (error, _) => _ErrorCard(
+                          message:
+                              error is ApiException
+                                  ? error.message
+                                  : l10n.errorGeneric,
+                          onRetry:
+                              () => ref.invalidate(
+                                lessonsForLanguageProvider(
+                                  profile.languageCode,
+                                ),
+                              ),
+                        ),
+                    data:
+                        (items) =>
+                            items.isEmpty
+                                ? const _EmptyLessons()
+                                : _ModeGrid(languageCode: profile.languageCode),
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
@@ -114,20 +120,21 @@ class HomeScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final shouldSignOut = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.authSignOutConfirmTitle),
-        content: Text(l10n.authSignOutConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.actionCancel),
+      builder:
+          (dialogContext) => AlertDialog(
+            title: Text(l10n.authSignOutConfirmTitle),
+            content: Text(l10n.authSignOutConfirmBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(l10n.actionCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(l10n.authSignOut),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.authSignOut),
-          ),
-        ],
-      ),
     );
 
     if (shouldSignOut ?? false) {
@@ -342,15 +349,9 @@ class _ModeCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
+                  Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
                 ],
               ),
             ],

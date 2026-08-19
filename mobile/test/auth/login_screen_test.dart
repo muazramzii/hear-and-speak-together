@@ -29,10 +29,7 @@ class _FakeAuthRepository implements AuthRepository {
   Future<User> fetchCurrentUser() async => _user;
 
   @override
-  Future<AuthSession> login({
-    required String email,
-    required String password,
-  }) {
+  Future<AuthSession> login({required String email, required String password}) {
     lastCredentials = (email: email, password: password);
     if (loginError != null) return Future.error(loginError!);
     if (pending != null) return pending!.future;
@@ -146,12 +143,13 @@ void main() {
   });
 
   testWidgets('shows the server error as visible text', (tester) async {
-    final repository = _FakeAuthRepository()
-      ..loginError = const ApiException(
-        kind: ApiErrorKind.server,
-        message: 'You are not signed in.',
-        statusCode: 401,
-      );
+    final repository =
+        _FakeAuthRepository()
+          ..loginError = const ApiException(
+            kind: ApiErrorKind.server,
+            message: 'You are not signed in.',
+            statusCode: 401,
+          );
     await tester.pumpWidget(_harness(repository));
     await tester.pumpAndSettle();
 
@@ -175,9 +173,8 @@ void main() {
     await tester.pumpWidget(_harness(_FakeAuthRepository()));
     await tester.pumpAndSettle();
 
-    EditableText passwordField() => tester.widget<EditableText>(
-      find.byType(EditableText).last,
-    );
+    EditableText passwordField() =>
+        tester.widget<EditableText>(find.byType(EditableText).last);
 
     expect(passwordField().obscureText, isTrue);
 

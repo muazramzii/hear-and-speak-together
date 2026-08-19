@@ -31,39 +31,51 @@ class StudentsScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 520),
             child: students.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorState(
-                message: error is ApiException
-                    ? error.message
-                    : l10n.errorGeneric,
-                onRetry: () => ref.invalidate(studentsProvider),
-              ),
-              data: (items) => items.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Text(
-                        l10n.studentsEmpty,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () async => ref.invalidate(studentsProvider),
-                      child: ListView(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        children: [
-                          for (final student in items)
-                            _StudentCard(
-                              student: student,
-                              onTap: () => context.pushNamed(
-                                AppRoutes.studentDetailName,
-                                pathParameters: {'profileId': '${student.id}'},
-                              ),
-                              onUnlink: () =>
-                                  _confirmUnlink(context, ref, student),
+              error:
+                  (error, _) => _ErrorState(
+                    message:
+                        error is ApiException
+                            ? error.message
+                            : l10n.errorGeneric,
+                    onRetry: () => ref.invalidate(studentsProvider),
+                  ),
+              data:
+                  (items) =>
+                      items.isEmpty
+                          ? Padding(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: Text(
+                              l10n.studentsEmpty,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
-                        ],
-                      ),
-                    ),
+                          )
+                          : RefreshIndicator(
+                            onRefresh:
+                                () async => ref.invalidate(studentsProvider),
+                            child: ListView(
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              children: [
+                                for (final student in items)
+                                  _StudentCard(
+                                    student: student,
+                                    onTap:
+                                        () => context.pushNamed(
+                                          AppRoutes.studentDetailName,
+                                          pathParameters: {
+                                            'profileId': '${student.id}',
+                                          },
+                                        ),
+                                    onUnlink:
+                                        () => _confirmUnlink(
+                                          context,
+                                          ref,
+                                          student,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                          ),
             ),
           ),
         ),
@@ -80,20 +92,21 @@ class StudentsScreen extends ConsumerWidget {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.studentsUnlink),
-        content: Text('${student.name} - ${l10n.studentsUnlinkConfirm}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.actionCancel),
+      builder:
+          (dialogContext) => AlertDialog(
+            title: Text(l10n.studentsUnlink),
+            content: Text('${student.name} - ${l10n.studentsUnlinkConfirm}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(l10n.actionCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(l10n.studentsUnlink),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.studentsUnlink),
-          ),
-        ],
-      ),
     );
 
     if (!(confirmed ?? false)) return;
@@ -174,12 +187,14 @@ class _StudentCard extends StatelessWidget {
                     // A dash rather than 0% when nothing has been measured.
                     Text(
                       average == null ? '-' : '$average%',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: average == null
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(
+                        color:
+                            average == null
                                 ? AppColors.textSecondary
                                 : AppColors.primary,
-                          ),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.link_off_rounded, size: 20),

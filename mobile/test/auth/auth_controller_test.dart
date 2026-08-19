@@ -56,11 +56,7 @@ class _FakeAuthRepository implements AuthRepository {
     required AppLanguage preferredLanguage,
   }) async {
     if (loginError != null) throw loginError!;
-    return const AuthSession(
-      user: _user,
-      accessToken: 'a',
-      refreshToken: 'r',
-    );
+    return const AuthSession(user: _user, accessToken: 'a', refreshToken: 'r');
   }
 
   @override
@@ -142,12 +138,13 @@ void main() {
     });
 
     test('reports bad credentials in child-friendly wording', () async {
-      final repository = _FakeAuthRepository()
-        ..loginError = const ApiException(
-          kind: ApiErrorKind.server,
-          message: 'You are not signed in.',
-          statusCode: 401,
-        );
+      final repository =
+          _FakeAuthRepository()
+            ..loginError = const ApiException(
+              kind: ApiErrorKind.server,
+              message: 'You are not signed in.',
+              statusCode: 401,
+            );
       final controller = _controllerFor(repository);
       await pumpEventQueue();
 
@@ -164,27 +161,32 @@ void main() {
       );
     });
 
-    test('surfaces a network failure rather than a credentials error', () async {
-      final repository = _FakeAuthRepository()
-        ..loginError = const ApiException(
-          kind: ApiErrorKind.network,
-          message: 'Could not reach the server.',
-        );
-      final controller = _controllerFor(repository);
-      await pumpEventQueue();
+    test(
+      'surfaces a network failure rather than a credentials error',
+      () async {
+        final repository =
+            _FakeAuthRepository()
+              ..loginError = const ApiException(
+                kind: ApiErrorKind.network,
+                message: 'Could not reach the server.',
+              );
+        final controller = _controllerFor(repository);
+        await pumpEventQueue();
 
-      await controller.login(email: 'a@b.com', password: 'x');
+        await controller.login(email: 'a@b.com', password: 'x');
 
-      expect(controller.state.errorMessage, 'Could not reach the server.');
-    });
+        expect(controller.state.errorMessage, 'Could not reach the server.');
+      },
+    );
 
     test('clearError removes a stale message', () async {
-      final repository = _FakeAuthRepository()
-        ..loginError = const ApiException(
-          kind: ApiErrorKind.server,
-          message: 'bad',
-          statusCode: 401,
-        );
+      final repository =
+          _FakeAuthRepository()
+            ..loginError = const ApiException(
+              kind: ApiErrorKind.server,
+              message: 'bad',
+              statusCode: 401,
+            );
       final controller = _controllerFor(repository);
       await pumpEventQueue();
       await controller.login(email: 'a@b.com', password: 'x');
@@ -197,15 +199,16 @@ void main() {
 
   group('registration', () {
     test('prefers the server field error over the generic message', () async {
-      final repository = _FakeAuthRepository()
-        ..loginError = const ApiException(
-          kind: ApiErrorKind.server,
-          message: 'Something went wrong. Please try again.',
-          statusCode: 400,
-          fieldErrors: {
-            'email': ['An account with this email already exists.'],
-          },
-        );
+      final repository =
+          _FakeAuthRepository()
+            ..loginError = const ApiException(
+              kind: ApiErrorKind.server,
+              message: 'Something went wrong. Please try again.',
+              statusCode: 400,
+              fieldErrors: {
+                'email': ['An account with this email already exists.'],
+              },
+            );
       final controller = _controllerFor(repository);
       await pumpEventQueue();
 
@@ -239,26 +242,29 @@ void main() {
       expect(repository.loggedOut, isTrue);
     });
 
-    test('a sessionExpired event signs the user out with an explanation', () async {
-      final events = StreamController<AuthEvent>.broadcast();
-      final controller = _controllerFor(
-        _FakeAuthRepository(storedSession: true),
-        events: events,
-      );
-      await pumpEventQueue();
-      expect(controller.state.status, AuthStatus.authenticated);
+    test(
+      'a sessionExpired event signs the user out with an explanation',
+      () async {
+        final events = StreamController<AuthEvent>.broadcast();
+        final controller = _controllerFor(
+          _FakeAuthRepository(storedSession: true),
+          events: events,
+        );
+        await pumpEventQueue();
+        expect(controller.state.status, AuthStatus.authenticated);
 
-      events.add(AuthEvent.sessionExpired);
-      await pumpEventQueue();
+        events.add(AuthEvent.sessionExpired);
+        await pumpEventQueue();
 
-      expect(controller.state.status, AuthStatus.unauthenticated);
-      expect(controller.state.user, isNull);
-      expect(
-        controller.state.errorMessage,
-        'Your session has ended. Please sign in again.',
-      );
+        expect(controller.state.status, AuthStatus.unauthenticated);
+        expect(controller.state.user, isNull);
+        expect(
+          controller.state.errorMessage,
+          'Your session has ended. Please sign in again.',
+        );
 
-      await events.close();
-    });
+        await events.close();
+      },
+    );
   });
 }
