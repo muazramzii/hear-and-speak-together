@@ -20,10 +20,18 @@ class PracticeScreen extends ConsumerWidget {
     super.key,
     required this.word,
     required this.languageCode,
+    this.progressLabel,
+    this.onNextWord,
   });
 
   final Word word;
   final String languageCode;
+
+  /// e.g. "3 / 12". Null when practising a single word outside a lesson.
+  final String? progressLabel;
+
+  /// Null on the last word of a lesson, which hides the "Next Word" action.
+  final VoidCallback? onNextWord;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +39,21 @@ class PracticeScreen extends ConsumerWidget {
     final profile = ref.watch(activeProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Speak (AI)')),
+      appBar: AppBar(
+        title: const Text('Speak (AI)'),
+        actions: [
+          if (progressLabel != null)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.md),
+              child: Center(
+                child: Text(
+                  progressLabel!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -43,6 +65,7 @@ class PracticeScreen extends ConsumerWidget {
                       result: state.result!,
                       onTryAgain: () =>
                           ref.read(practiceControllerProvider.notifier).reset(),
+                      onNextWord: onNextWord,
                     )
                   : _PromptView(
                       word: word,
@@ -371,10 +394,15 @@ class _ErrorPanel extends StatelessWidget {
 }
 
 class _ResultView extends StatefulWidget {
-  const _ResultView({required this.result, required this.onTryAgain});
+  const _ResultView({
+    required this.result,
+    required this.onTryAgain,
+    this.onNextWord,
+  });
 
   final PracticeResult result;
   final VoidCallback onTryAgain;
+  final VoidCallback? onNextWord;
 
   @override
   State<_ResultView> createState() => _ResultViewState();
@@ -441,10 +469,21 @@ class _ResultViewState extends State<_ResultView> {
         ],
 
         const SizedBox(height: AppSpacing.lg),
-        FilledButton(
-          onPressed: widget.onTryAgain,
-          child: const Text('Try Again'),
-        ),
+        if (widget.onNextWord != null) ...[
+          FilledButton(
+            onPressed: widget.onNextWord,
+            child: const Text('Next Word'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: widget.onTryAgain,
+            child: const Text('Try Again'),
+          ),
+        ] else
+          FilledButton(
+            onPressed: widget.onTryAgain,
+            child: const Text('Try Again'),
+          ),
       ],
     );
   }

@@ -110,3 +110,11 @@ final categoriesProvider = FutureProvider.family<List<Category>, String>((
 final lessonProvider = FutureProvider.family<Lesson, int>((ref, id) {
   return ref.watch(contentRepositoryProvider).fetchLesson(id);
 });
+
+/// Lessons available in a given practice language.
+final lessonsForLanguageProvider =
+    FutureProvider.family<List<Lesson>, String>((ref, languageCode) {
+      return ref
+          .watch(contentRepositoryProvider)
+          .fetchLessons(languageCode: languageCode);
+    });

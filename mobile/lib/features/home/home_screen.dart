@@ -1,93 +1,306 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
-import '../../models/user.dart';
+import '../../l10n/l10n.dart';
+import '../../models/content.dart';
 import '../../providers/auth_provider.dart';
+import '../../repositories/content_repository.dart';
+import '../../repositories/profile_repository.dart';
+import '../../routes/app_router.dart';
 
-/// Placeholder home screen for Phase 2.
-///
-/// It proves the authenticated session works end to end - the greeting and
-/// role come from `/api/auth/me/`. Lessons, progress and the parent dashboard
-/// replace this content in later phases.
+/// The learner's home: greeting, points, and the four learning modes.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
+    final l10n = context.l10n;
+    final profile = ref.watch(activeProfileProvider);
 
-    if (user == null) {
-      // The router redirects when this happens; this is just a safe frame.
+    if (profile == null) {
+      // The router sends the user to the picker; this is just a safe frame.
       return const Scaffold(body: SizedBox.shrink());
     }
 
+    final lessons = ref.watch(
+      lessonsForLanguageProvider(profile.languageCode),
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hi, ${user.firstName}! 👋'),
+        automaticallyImplyLeading: false,
+        title: Text(l10n.homeGreeting(profile.name)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign out',
-            onPressed: () => _confirmSignOut(context, ref),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Chip(
+              avatar: const Icon(
+                Icons.star_rounded,
+                color: AppColors.amber,
+                size: 18,
+              ),
+              label: Text('${profile.points}'),
+            ),
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'You are signed in',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Your account is connected to the Hear & Speak server.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _DetailRow(label: 'Name', value: user.name),
-                      _DetailRow(label: 'Email', value: user.email),
-                      _DetailRow(label: 'Role', value: _roleLabel(user.role)),
-                      _DetailRow(
-                        label: 'Language',
-                        value: user.preferredLanguage.label,
-                      ),
-                    ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.homeSubtitle,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  _StreakCard(streakDays: profile.streakDays),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  lessons.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(AppSpacing.xl),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, _) => _ErrorCard(
+                      message: error is ApiException
+                          ? error.message
+                          : l10n.errorGeneric,
+                      onRetry: () => ref.invalidate(
+                        lessonsForLanguageProvider(profile.languageCode),
+                      ),
+                    ),
+                    data: (items) => items.isEmpty
+                        ? const _EmptyLessons()
+                        : _ModeGrid(
+                            lesson: items.first,
+                            languageCode: profile.languageCode,
+                          ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.xl),
+                  TextButton.icon(
+                    onPressed: () => context.goNamed(AppRoutes.profilesName),
+                    icon: const Icon(Icons.switch_account_rounded),
+                    label: Text(l10n.profileChooseTitle),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _confirmSignOut(context, ref),
+                    icon: const Icon(Icons.logout_rounded),
+                    label: Text(l10n.authSignOut),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.construction_rounded,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          user.role.supervisesStudents
-                              ? 'The student dashboard is coming next.'
-                              : 'Lessons and speaking practice are coming next.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.authSignOutConfirmTitle),
+        content: Text(l10n.authSignOutConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.authSignOut),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSignOut ?? false) {
+      ref.read(activeProfileProvider.notifier).state = null;
+      await ref.read(authControllerProvider.notifier).logout();
+    }
+  }
+}
+
+class _StreakCard extends StatelessWidget {
+  const _StreakCard({required this.streakDays});
+
+  final int streakDays;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.amberSoft,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      ),
+      child: Row(
+        children: [
+          const Text('🐘', style: TextStyle(fontSize: 40)),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  streakDays > 0
+                      ? 'Keep up the great work!'
+                      : 'Ready to start?',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  streakDays > 0
+                      ? '🔥 $streakDays day streak'
+                      : 'Practise today to start a streak.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four modes from the design: Learn, Listen, Speak (AI) and Quiz.
+class _ModeGrid extends StatelessWidget {
+  const _ModeGrid({required this.lesson, required this.languageCode});
+
+  final Lesson lesson;
+  final String languageCode;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: AppSpacing.md,
+      crossAxisSpacing: AppSpacing.md,
+      childAspectRatio: 1.05,
+      children: [
+        _ModeCard(
+          title: l10n.modeLearn,
+          subtitle: l10n.modeLearnSubtitle,
+          icon: Icons.menu_book_rounded,
+          tint: AppColors.amberSoft,
+          accent: AppColors.amber,
+          onTap: () => context.pushNamed(
+            AppRoutes.learnName,
+            pathParameters: {'lessonId': '${lesson.id}'},
+            queryParameters: {'lang': languageCode},
+          ),
+        ),
+        _ModeCard(
+          title: l10n.modeListen,
+          subtitle: l10n.modeListenSubtitle,
+          icon: Icons.headphones_rounded,
+          tint: AppColors.blueSoft,
+          accent: AppColors.blue,
+          onTap: () => context.pushNamed(
+            AppRoutes.listenName,
+            pathParameters: {'lessonId': '${lesson.id}'},
+            queryParameters: {'lang': languageCode},
+          ),
+        ),
+        _ModeCard(
+          title: l10n.modeSpeak,
+          subtitle: l10n.modeSpeakSubtitle,
+          icon: Icons.mic_rounded,
+          tint: AppColors.greenSoft,
+          accent: AppColors.green,
+          onTap: () => context.pushNamed(
+            AppRoutes.speakName,
+            pathParameters: {'lessonId': '${lesson.id}'},
+            queryParameters: {'lang': languageCode},
+          ),
+        ),
+        _ModeCard(
+          title: l10n.modeQuiz,
+          subtitle: l10n.modeQuizSubtitle,
+          icon: Icons.help_outline_rounded,
+          tint: AppColors.violetSoft,
+          accent: AppColors.primary,
+          onTap: () => context.pushNamed(
+            AppRoutes.quizName,
+            pathParameters: {'lessonId': '${lesson.id}'},
+            queryParameters: {'lang': languageCode},
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  const _ModeCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.tint,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color tint;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: tint,
+      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                height: 44,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppSpacing.sm + 4),
+                ),
+                child: Icon(icon, color: accent),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
               ),
             ],
           ),
@@ -95,64 +308,51 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
-
-  static String _roleLabel(UserRole role) => switch (role) {
-    UserRole.student => 'Student',
-    UserRole.parent => 'Parent',
-    UserRole.teacher => 'Teacher',
-  };
-
-  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
-    final shouldSignOut = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You will need to sign in again to practise.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldSignOut ?? false) {
-      await ref.read(authControllerProvider.notifier).logout();
-    }
-  }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
+class _EmptyLessons extends StatelessWidget {
+  const _EmptyLessons();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Text(
+          'No lessons available for this language yet.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(context.l10n.actionTryAgain),
+            ),
+          ],
+        ),
       ),
     );
   }
