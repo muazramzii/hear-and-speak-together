@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/word_speaker.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../repositories/content_repository.dart';
 
@@ -40,18 +41,18 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
     final lesson = ref.watch(lessonProvider(widget.lessonId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Learn')),
+      appBar: AppBar(title: Text(context.l10n.learnTitle)),
       body: SafeArea(
         child: lesson.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _ErrorState(
             message: error is ApiException
                 ? error.message
-                : 'Something went wrong.',
+                : context.l10n.errorGeneric,
             onRetry: () => ref.invalidate(lessonProvider(widget.lessonId)),
           ),
           data: (data) => data.words.isEmpty
-              ? const Center(child: Text('This lesson has no words yet.'))
+              ? Center(child: Text(context.l10n.learnNoWords))
               : _WordPager(
                   words: data.words,
                   controller: _pageController,
@@ -118,7 +119,7 @@ class _WordPager extends ConsumerWidget {
                             curve: Curves.easeOut,
                           ),
                     icon: const Icon(Icons.chevron_left_rounded),
-                    tooltip: 'Previous word',
+                    tooltip: context.l10n.learnPrevious,
                   ),
                   Text(
                     '${index + 1} / ${words.length}',
@@ -132,7 +133,7 @@ class _WordPager extends ConsumerWidget {
                             curve: Curves.easeOut,
                           ),
                     icon: const Icon(Icons.chevron_right_rounded),
-                    tooltip: 'Next word',
+                    tooltip: context.l10n.learnNext,
                   ),
                 ],
               ),
@@ -215,7 +216,7 @@ class _WordCard extends ConsumerWidget {
                     .read(wordSpeakerProvider)
                     .speak(word.text, languageCode: languageCode),
                 icon: const Icon(Icons.volume_up_rounded),
-                tooltip: 'Listen',
+                tooltip: context.l10n.learnListen,
               ),
               const SizedBox(width: AppSpacing.md),
               IconButton.filledTonal(
@@ -225,7 +226,7 @@ class _WordCard extends ConsumerWidget {
                     .read(wordSpeakerProvider)
                     .speak(word.text, languageCode: languageCode, slow: true),
                 icon: const Icon(Icons.slow_motion_video_rounded),
-                tooltip: 'Listen slowly',
+                tooltip: context.l10n.learnListenSlowly,
               ),
             ],
           ),
@@ -261,7 +262,10 @@ class _ErrorState extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Try Again')),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(context.l10n.actionTryAgain),
+            ),
           ],
         ),
       ),

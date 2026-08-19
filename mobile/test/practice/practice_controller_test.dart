@@ -115,7 +115,12 @@ void main() {
 
       expect(controller.state.stage, PracticeStage.error);
       expect(controller.state.permissionDenied, isTrue);
-      expect(controller.state.errorMessage, contains('Microphone permission'));
+      // Carried as an enum so the widget can translate it; a sentence here
+      // would be stuck in one language.
+      expect(
+        controller.state.recordingFailure,
+        RecordingFailure.permissionDenied,
+      );
     });
 
     test('a too-short clip explains what to do differently', () async {
@@ -128,7 +133,7 @@ void main() {
       await controller.stopAndEvaluate(wordId: 1, profileId: 1);
 
       expect(controller.state.stage, PracticeStage.error);
-      expect(controller.state.errorMessage, contains('too short'));
+      expect(controller.state.recordingFailure, RecordingFailure.tooShort);
       // Nothing was uploaded, so nothing was billed.
       expect(repo.calls, 0);
     });

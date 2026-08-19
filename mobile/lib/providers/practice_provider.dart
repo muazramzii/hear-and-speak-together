@@ -31,12 +31,21 @@ class PracticeState {
     this.stage = PracticeStage.ready,
     this.result,
     this.errorMessage,
+    this.recordingFailure,
     this.permissionDenied = false,
   });
 
   final PracticeStage stage;
   final PracticeResult? result;
+
+  /// Set for failures whose text originates server-side (already localised by
+  /// the backend into the practice language).
   final String? errorMessage;
+
+  /// Set for device-side failures. Carried as an enum rather than a sentence
+  /// because this layer has no `BuildContext`, so it cannot look up a
+  /// translation - the widget maps it to the interface language.
+  final RecordingFailure? recordingFailure;
 
   /// Tracked separately because it needs a different remedy - opening system
   /// settings, not retrying.
@@ -49,6 +58,7 @@ class PracticeState {
     PracticeStage? stage,
     PracticeResult? result,
     String? errorMessage,
+    RecordingFailure? recordingFailure,
     bool? permissionDenied,
     bool clearResult = false,
     bool clearError = false,
@@ -57,6 +67,9 @@ class PracticeState {
       stage: stage ?? this.stage,
       result: clearResult ? null : (result ?? this.result),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      recordingFailure: clearError
+          ? null
+          : (recordingFailure ?? this.recordingFailure),
       permissionDenied: permissionDenied ?? this.permissionDenied,
     );
   }
@@ -81,7 +94,7 @@ class PracticeController extends StateNotifier<PracticeState> {
     } on RecordingException catch (error) {
       state = PracticeState(
         stage: PracticeStage.error,
-        errorMessage: _messageFor(error.failure),
+        recordingFailure: error.failure,
         permissionDenied: error.failure == RecordingFailure.permissionDenied,
       );
     }
@@ -101,7 +114,7 @@ class PracticeController extends StateNotifier<PracticeState> {
     } on RecordingException catch (error) {
       state = PracticeState(
         stage: PracticeStage.error,
-        errorMessage: _messageFor(error.failure),
+        recordingFailure: error.failure,
         permissionDenied: error.failure == RecordingFailure.permissionDenied,
       );
       return;
@@ -135,17 +148,6 @@ class PracticeController extends StateNotifier<PracticeState> {
 
   /// Back to Ready, keeping nothing from the previous attempt.
   void reset() => state = const PracticeState();
-
-  String _messageFor(RecordingFailure failure) {
-    return switch (failure) {
-      RecordingFailure.permissionDenied =>
-        'Microphone permission is needed to practise speaking.',
-      RecordingFailure.tooShort =>
-        'That was too short. Hold the button while you say the word.',
-      RecordingFailure.unavailable =>
-        'We could not use the microphone. Please try again.',
-    };
-  }
 }
 
 final practiceControllerProvider =

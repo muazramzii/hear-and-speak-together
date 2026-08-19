@@ -1,16 +1,13 @@
 {
   "@@locale": "en",
-
   "appTitle": "Hear & Speak Together",
   "appTagline": "Listen, Speak & Communicate Together!",
-
   "actionStart": "Start",
   "actionContinue": "Continue",
   "actionTryAgain": "Try Again",
   "actionCheckAgain": "Check again",
   "actionCancel": "Cancel",
   "actionSave": "Save",
-
   "authSignIn": "Sign In",
   "authSignInBusy": "Signing in...",
   "authWelcomeBack": "Welcome back!",
@@ -37,29 +34,34 @@
   "authSignOutConfirmTitle": "Sign out?",
   "authSignOutConfirmBody": "You will need to sign in again to practise.",
   "authBackToSignIn": "Back to sign in",
-
   "validationEmailRequired": "Please enter your email.",
   "validationEmailInvalid": "Please enter a valid email address.",
   "validationPasswordRequired": "Please enter your password.",
   "validationPasswordShort": "Use at least 8 characters.",
   "validationPasswordMismatch": "The two passwords do not match.",
   "validationNameRequired": "Please enter a name.",
-
   "profileChooseTitle": "Choose Profile",
   "profileChooseSubtitle": "Pick a profile to start learning",
   "profileAddNew": "Add New Profile",
   "profileLevel": "Level {level}",
   "@profileLevel": {
-    "placeholders": { "level": { "type": "int" } }
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
   },
   "profileNameLabel": "Profile name",
   "profileAvatarLabel": "Choose a character",
   "profileEmpty": "No profiles yet. Add one to start learning.",
   "profileCreateTitle": "New profile",
-
   "homeGreeting": "Hi, {name}!",
   "@homeGreeting": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "homeSubtitle": "Let's keep learning today!",
   "modeLearn": "Learn",
@@ -70,17 +72,14 @@
   "modeSpeakSubtitle": "Speak & Get Feedback",
   "modeQuiz": "Quiz",
   "modeQuizSubtitle": "Test Your Knowledge",
-
   "navHome": "Home",
   "navProgress": "Progress",
   "navRewards": "Rewards",
   "navSettings": "Settings",
-
   "settingsInterfaceLanguage": "App language",
   "settingsInterfaceLanguageHelp": "Changes the buttons and labels in the app.",
   "settingsPracticeLanguage": "Practice language",
   "settingsPracticeLanguageHelp": "Changes the words you learn and speak.",
-
   "statusLoading": "Loading...",
   "statusCheckingConnection": "Checking connection...",
   "statusCheckingConnectionDetail": "Contacting the Hear & Speak server.",
@@ -88,11 +87,154 @@
   "statusBackendConnectedDetail": "The API and the database are both responding.",
   "statusBackendFailed": "Backend Connection Failed",
   "statusDatabaseUnreachable": "The API is running but cannot reach the database.",
-
   "errorGeneric": "Something went wrong. Please try again.",
   "errorNetwork": "Could not reach the server. Please check your internet connection.",
   "errorTimeout": "The server took too long to respond. Please try again.",
   "errorSignedOut": "You are not signed in. Please sign in and try again.",
   "errorBadCredentials": "That email or password is not right. Please try again.",
-  "errorSessionExpired": "Your session has ended. Please sign in again."
+  "errorSessionExpired": "Your session has ended. Please sign in again.",
+  "learnTitle": "Learn",
+  "listenTitle": "Listen",
+  "speakTitle": "Speak (AI)",
+  "quizTitle": "Quiz",
+  "learnListen": "Listen",
+  "learnListenSlowly": "Listen slowly",
+  "learnPrevious": "Previous word",
+  "learnNext": "Next word",
+  "learnNoWords": "This lesson has no words yet.",
+  "choicePromptListen": "Listen and choose the picture",
+  "choicePromptQuiz": "Choose the correct picture",
+  "choicePlayWord": "Play the word",
+  "choiceQuestionOf": "Question {current} / {total}",
+  "@choiceQuestionOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "choiceCorrect": "Correct!",
+  "choiceWrong": "Not quite - keep going!",
+  "choiceNext": "Next",
+  "choiceFinish": "Finish",
+  "choicePlayAgain": "Play Again",
+  "choiceWellDone": "Well done!",
+  "choiceScoreLine": "You got {correct} out of {total} right.",
+  "@choiceScoreLine": {
+    "placeholders": {
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "choiceNotEnoughWords": "This lesson does not have enough words for a quiz yet.",
+  "choiceCorrectAnswer": "{word}, correct answer",
+  "@choiceCorrectAnswer": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "choiceWrongAnswer": "{word}, wrong answer",
+  "@choiceWrongAnswer": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceReady": "Ready",
+  "practiceReadyDetail": "Tap the microphone and say the word.",
+  "practiceListening": "Listening...",
+  "practiceListeningDetail": "Say the word, then tap to stop.",
+  "practiceProcessing": "Checking your pronunciation...",
+  "practiceProcessingDetail": "This takes a moment.",
+  "practiceFailed": "Something went wrong",
+  "practiceFailedDetail": "See the message below.",
+  "practiceResult": "Result",
+  "practiceTapToStart": "Tap to start speaking",
+  "practiceTapToStop": "Tap to stop",
+  "practiceStartRecording": "Start recording",
+  "practiceStopRecording": "Stop recording",
+  "practiceSlowly": "Slowly",
+  "practiceYouSaid": "You said: {text}",
+  "@practiceYouSaid": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceNextWord": "Next Word",
+  "practiceViewDetails": "View Details",
+  "practiceHideDetails": "Hide Details",
+  "practiceScoredBy": "Scored by Azure AI Speech for {locale}.",
+  "@practiceScoredBy": {
+    "placeholders": {
+      "locale": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceChooseProfileFirst": "Choose a profile before practising.",
+  "practiceOpenSettings": "Open Settings",
+  "practiceScoreLabel": "Score",
+  "metricAccuracy": "Accuracy",
+  "metricFluency": "Fluency",
+  "metricCompleteness": "Completeness",
+  "metricPronunciation": "Pronunciation",
+  "metricProsody": "Intonation",
+  "errorMicDenied": "Microphone permission is needed to practise speaking.",
+  "errorTooShort": "That was too short. Hold the button while you say the word.",
+  "errorMicUnavailable": "We could not use the microphone. Please try again.",
+  "errorNoLessons": "No lessons available for this language yet.",
+  "homeKeepGoing": "Keep up the great work!",
+  "homeReadyToStart": "Ready to start?",
+  "homeStreakDays": "{days} day streak",
+  "@homeStreakDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeStartStreak": "Practise today to start a streak.",
+  "homeSwitchProfile": "Switch profile",
+  "lessonsTitle": "Lessons",
+  "lessonsWordCount": "{count} words",
+  "@lessonsWordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lessonsChoose": "Choose a lesson",
+  "progressTitle": "Progress",
+  "progressAverageScore": "Average Score",
+  "progressWordsLearned": "Words Learned",
+  "progressLessonsStarted": "Lessons Started",
+  "progressSessions": "Practice Sessions",
+  "progressWeakWords": "Words to practise again",
+  "progressNoData": "Practise a word to start building your progress.",
+  "progressAttemptsCount": "{count} attempts",
+  "@progressAttemptsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rewardsTitle": "Rewards",
+  "rewardsEarned": "Earned",
+  "rewardsLocked": "Not yet earned",
+  "rewardsNone": "No rewards yet. Keep practising!",
+  "rewardsCongratulations": "Congratulations!"
 }
