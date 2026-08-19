@@ -16,3 +16,7 @@ django-filter>=24.3
 # ---- Configuration / assets ----
 python-dotenv>=1.0,<2.0
 Pillow>=10.4
+
+# ---- Speech (Azure AI Speech Pronunciation Assessment) ----
+# Only loaded when SPEECH_PROVIDER=azure; tests use the mock service.
+azure-cognitiveservices-speech>=1.40,<2.0

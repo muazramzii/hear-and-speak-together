@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class PracticeConfig(AppConfig):
+    """Speaking practice: assessment, feedback and attempt history."""
+
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.practice"
+    label = "practice"
+    verbose_name = "Practice"

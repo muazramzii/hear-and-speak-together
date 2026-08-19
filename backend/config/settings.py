@@ -74,6 +74,7 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.content",
     "apps.profiles",
+    "apps.practice",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -197,6 +198,11 @@ CORS_ALLOW_CREDENTIALS = True
 # ---------------------------------------------------------------------------
 AZURE_SPEECH_KEY = env_str("AZURE_SPEECH_KEY", default="")
 AZURE_SPEECH_REGION = env_str("AZURE_SPEECH_REGION", default="")
+
+# Which pronunciation assessment implementation to use: "azure" or "mock".
+# Defaults to mock so a fresh checkout, and the entire test suite, never
+# spends money or needs a key.
+SPEECH_PROVIDER = env_str("SPEECH_PROVIDER", default="mock")
 
 AI_PROVIDER = env_str("AI_PROVIDER", default="mock")
 AI_API_KEY = env_str("AI_API_KEY", default="")
