@@ -248,5 +248,6 @@
   "profileShareCodeHelp": "Give this to a teacher so they can follow this learner's progress.",
   "profileRegenerateCode": "New code",
   "supervisorSectionTitle": "Your students",
-  "supervisorSectionBody": "View progress for the learners you follow."
+  "supervisorSectionBody": "View progress for the learners you follow.",
+  "studentsUnlinkConfirm": "Stop following this learner?"
 }

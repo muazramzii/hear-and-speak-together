@@ -58,6 +58,8 @@ class StudentsScreen extends ConsumerWidget {
                                 AppRoutes.studentDetailName,
                                 pathParameters: {'profileId': '${student.id}'},
                               ),
+                              onUnlink: () =>
+                                  _confirmUnlink(context, ref, student),
                             ),
                         ],
                       ),
@@ -67,6 +69,45 @@ class StudentsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmUnlink(
+    BuildContext context,
+    WidgetRef ref,
+    SupervisedStudent student,
+  ) async {
+    final l10n = context.l10n;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.studentsUnlink),
+        content: Text('${student.name} - ${l10n.studentsUnlinkConfirm}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.studentsUnlink),
+          ),
+        ],
+      ),
+    );
+
+    if (!(confirmed ?? false)) return;
+
+    try {
+      await ref.read(studentsRepositoryProvider).unlinkStudent(student.id);
+      ref.invalidate(studentsProvider);
+    } on ApiException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   Future<void> _openLinkSheet(BuildContext context, WidgetRef ref) async {
@@ -81,10 +122,15 @@ class StudentsScreen extends ConsumerWidget {
 }
 
 class _StudentCard extends StatelessWidget {
-  const _StudentCard({required this.student, required this.onTap});
+  const _StudentCard({
+    required this.student,
+    required this.onTap,
+    required this.onUnlink,
+  });
 
   final SupervisedStudent student;
   final VoidCallback onTap;
+  final VoidCallback onUnlink;
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +180,11 @@ class _StudentCard extends StatelessWidget {
                                 ? AppColors.textSecondary
                                 : AppColors.primary,
                           ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.link_off_rounded, size: 20),
+                      tooltip: l10n.studentsUnlink,
+                      onPressed: onUnlink,
                     ),
                   ],
                 ),

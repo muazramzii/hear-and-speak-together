@@ -169,16 +169,62 @@ success and failure states pair colour with both an icon and a text label.
 
 ---
 
-## Phase 1 scope
+## Learners, accounts and supervisors
 
-Phase 1 establishes the foundation only:
+A **User** is the login. A **Profile** is the learner. One family account holds
+several children, each with independent level, points and streak, and
+everything that records learning attaches to the Profile — so a sibling's
+practice never lands on the wrong child's record.
 
-- Django project with DRF, CORS, environment-based configuration, and the JWT
-  dependency wired into settings.
-- PostgreSQL connected via `DATABASE_URL`.
-- `GET /api/health/`, which reports both process and database health.
-- Flutter project with Riverpod, Dio, go_router, a design system, and a
-  connection screen that exercises the full client → API → database path.
+Parents own their children's profiles. Teachers, who do not, link via an
+unguessable **share code** the family gives them. Linking is deliberately
+code-based rather than searchable: a supervisor must never be able to discover
+learners they were not given access to.
 
-Authentication endpoints, the domain models, Azure integration, the feedback
-engine and analytics are explicitly out of scope for this phase.
+Access is enforced by **filtering the queryset**, not by a per-object
+permission check. Another family's child returns `404`, not `403`, because a
+`403` would confirm the profile exists.
+
+---
+
+## Learning analytics
+
+Entirely rule-based — no machine learning, no LLM. The questions being asked
+("which words does this child keep getting wrong?") are answered exactly by
+aggregating their attempts, and a deterministic answer is one a teacher can
+check and a supervisor can defend.
+
+Three judgements worth stating:
+
+- **Weak words need repeated evidence.** One bad attempt is a bad recording,
+  not a weakness — so a word is flagged only after two or more attempts
+  averaging below the threshold.
+- **Words-learned uses the *best* attempt, not the average.** A child who
+  struggled and then succeeded has learned the word; averaging would punish
+  them for practising.
+- **Unscored attempts are excluded from averages.** A silent recording is
+  stored (a parent wants to know) but measures nothing, and would drag scores
+  down unfairly.
+
+Pronunciation figures stay **speaking-only**: a tap on a picture says nothing
+about how a child sounds. Rewards, by contrast, count **any** mode — a child
+who only plays quizzes has still practised, and earning nothing for it would
+discourage the behaviour the rewards exist to encourage.
+
+---
+
+## Development phases
+
+| Phase | Delivered |
+| --- | --- |
+| 1 | Django + DRF + PostgreSQL foundation, health endpoint, Flutter shell |
+| 2 | Custom email-keyed User, JWT authentication, role permissions |
+| 3 | Bilingual content models, learner profiles, localization scaffold |
+| 4 | Azure pronunciation assessment, the Speak flow, deterministic feedback |
+| 5 | Optional LLM feedback layer, Learn / Listen / Quiz modes |
+| 6 | Learning analytics, achievements, bottom navigation, lesson browser |
+| 7 | Supervisor dashboard, quiz persistence, teacher linking |
+| 8 | Share-code UI, production hardening, documentation |
+
+Each phase ended with the full test suite green and a live end-to-end check
+against a running server.
