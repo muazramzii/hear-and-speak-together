@@ -82,6 +82,7 @@ class _ProfileList extends ConsumerWidget {
               ref.read(activeProfileProvider.notifier).state = profile;
               context.goNamed(AppRoutes.homeName);
             },
+            onShowCode: () => _showShareCode(context, ref, profile),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -103,6 +104,20 @@ class _ProfileList extends ConsumerWidget {
     AppColors.amberSoft,
   ];
 
+  Future<void> _showShareCode(
+    BuildContext context,
+    WidgetRef ref,
+    LearnerProfile profile,
+  ) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ShareCodeSheet(profile: profile),
+    );
+
+    if (changed ?? false) ref.invalidate(profilesProvider);
+  }
+
   Future<void> _openCreateSheet(BuildContext context, WidgetRef ref) async {
     final created = await showModalBottomSheet<bool>(
       context: context,
@@ -121,11 +136,13 @@ class _ProfileCard extends StatelessWidget {
     required this.profile,
     required this.tint,
     required this.onTap,
+    required this.onShowCode,
   });
 
   final LearnerProfile profile;
   final Color tint;
   final VoidCallback onTap;
+  final VoidCallback onShowCode;
 
   @override
   Widget build(BuildContext context) {
@@ -182,9 +199,108 @@ class _ProfileCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // Behind an explicit tap: the code grants a stranger read
+              // access to this child, so it should not sit on screen.
+              if (profile.shareCode.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.ios_share_rounded, size: 20),
+                  tooltip: l10n.profileShareCode,
+                  onPressed: onShowCode,
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shows the code a family gives to a teacher, and lets them rotate it.
+class _ShareCodeSheet extends ConsumerStatefulWidget {
+  const _ShareCodeSheet({required this.profile});
+
+  final LearnerProfile profile;
+
+  @override
+  ConsumerState<_ShareCodeSheet> createState() => _ShareCodeSheetState();
+}
+
+class _ShareCodeSheetState extends ConsumerState<_ShareCodeSheet> {
+  late String _code = widget.profile.shareCode;
+  bool _busy = false;
+  bool _changed = false;
+
+  Future<void> _regenerate() async {
+    setState(() => _busy = true);
+
+    try {
+      final updated = await ref
+          .read(profileRepositoryProvider)
+          .regenerateShareCode(widget.profile.id);
+      setState(() {
+        _code = updated.shareCode;
+        _changed = true;
+        _busy = false;
+      });
+    } on ApiException {
+      setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.profileShareCode,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            l10n.profileShareCodeHelp,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.violetSoft,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            ),
+            child: SelectableText(
+              _code,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                // Monospace keeps the characters evenly spaced, which matters
+                // when someone is reading them out one at a time.
+                fontFamily: 'monospace',
+                letterSpacing: 4,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _regenerate,
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(
+              _busy ? l10n.statusLoading : l10n.profileRegenerateCode,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_changed),
+            child: Text(l10n.actionCancel),
+          ),
+        ],
       ),
     );
   }

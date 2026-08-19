@@ -248,5 +248,6 @@
   "profileShareCodeHelp": "Berikan kod ini kepada guru supaya mereka boleh melihat kemajuan murid.",
   "profileRegenerateCode": "Kod baharu",
   "supervisorSectionTitle": "Murid anda",
-  "supervisorSectionBody": "Lihat kemajuan murid yang anda ikuti."
+  "supervisorSectionBody": "Lihat kemajuan murid yang anda ikuti.",
+  "studentsUnlinkConfirm": "Berhenti mengikuti murid ini?"
 }

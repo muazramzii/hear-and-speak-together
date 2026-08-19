@@ -5,10 +5,11 @@ helps children practise listening and speaking. Children hear a target word,
 record themselves saying it, and receive a pronunciation score with friendly,
 age-appropriate feedback.
 
-> **Status: Phase 2 (Authentication) complete.**
-> The Django + PostgreSQL backend and Flutter client are connected, and users
-> can register, sign in and stay signed in with JWTs. Lessons, speech
-> assessment and analytics arrive in later phases.
+> **Status: feature-complete through Phase 8.**
+> Authentication, bilingual content, Azure pronunciation assessment, four
+> learning modes, analytics, achievements and a parent/teacher dashboard are
+> all built and tested. **The Azure integration has not yet been run against a
+> real Azure subscription** — see [docs/azure-speech.md](docs/azure-speech.md).
 
 ---
 
@@ -20,8 +21,9 @@ age-appropriate feedback.
 | API | Django + Django REST Framework |
 | Database | PostgreSQL |
 | Authentication | JWT (`djangorestframework-simplejwt`), `flutter_secure_storage` |
-| Pronunciation assessment | Azure AI Speech, server-side only — *Phase 3* |
-| Feedback | Deterministic rules, with an optional LLM layer — *Phase 5* |
+| Pronunciation assessment | Azure AI Speech, server-side only |
+| Feedback | Deterministic rules, with an optional LLM layer |
+| Analytics | Rule-based, in Django — no ML, no LLM |
 
 Azure and LLM credentials live **only** on the Django server. The Flutter app
 never holds a speech or AI key; it uploads audio to Django, and Django talks to
@@ -192,4 +194,30 @@ run offline and cost nothing.
 
 ## Documentation
 
-See [`docs/`](docs/) for development setup and architectural decisions.
+| Document | What it covers |
+| --- | --- |
+| [architecture.md](docs/architecture.md) | Design decisions and why each was made |
+| [azure-speech.md](docs/azure-speech.md) | How pronunciation is scored, and the locale limits |
+| [database.md](docs/database.md) | Schema, and why it is shaped this way |
+| [api.md](docs/api.md) | Every endpoint, with request and response shapes |
+| [development.md](docs/development.md) | Day-to-day commands and environment variables |
+| [testing.md](docs/testing.md) | What is tested, and what is not |
+| [deployment.md](docs/deployment.md) | Going live, and production hardening |
+
+**Start with [azure-speech.md](docs/azure-speech.md)** if you want the single
+most important design decision: why an acoustic service scores pronunciation
+and a language model never does.
+
+---
+
+## Tests
+
+**303 tests** — 210 backend, 93 Flutter. All run offline and call no paid API.
+
+```bash
+cd backend && .venv\Scripts\python.exe manage.py test
+```
+
+```bash
+cd mobile && flutter test
+```

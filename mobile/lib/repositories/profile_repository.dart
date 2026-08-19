@@ -65,6 +65,18 @@ class ProfileRepository {
     }
   }
 
+  /// Issues a new share code, invalidating the old one for future links.
+  Future<LearnerProfile> regenerateShareCode(int id) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/profiles/$id/regenerate-code/',
+      );
+      return LearnerProfile.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+
   Future<void> deleteProfile(int id) async {
     try {
       await _dio.delete('/profiles/$id/');
