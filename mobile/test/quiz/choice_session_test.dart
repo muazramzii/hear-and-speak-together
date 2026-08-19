@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hear_speak_together/core/network/api_exception.dart';
 import 'package:hear_speak_together/models/content.dart';
 import 'package:hear_speak_together/providers/choice_session_provider.dart';
+import 'package:hear_speak_together/models/practice_result.dart';
 import 'package:hear_speak_together/repositories/content_repository.dart';
+import 'package:hear_speak_together/repositories/practice_repository.dart';
 
 Word _word(int id, String text) => Word(
   id: id,
@@ -68,12 +70,49 @@ class _FakeContentRepository implements ContentRepository {
   }) async => [];
 }
 
+class _FakePracticeRepository implements PracticeRepository {
+  int submissions = 0;
+  ApiException? error;
+  ({int correct, int total, String mode})? lastSubmission;
+
+  @override
+  Future<QuizOutcome> submitQuizResult({
+    required int profileId,
+    required int lessonId,
+    required String mode,
+    required int correctCount,
+    required int totalRounds,
+  }) async {
+    submissions++;
+    lastSubmission = (correct: correctCount, total: totalRounds, mode: mode);
+    if (error != null) throw error!;
+    return QuizOutcome(
+      pointsAwarded: correctCount * 10,
+      accuracyPercentage: ((correctCount / totalRounds) * 100).round(),
+      newAchievements: const ['First Practice'],
+    );
+  }
+
+  @override
+  Future<PracticeResult> evaluate({
+    required int wordId,
+    required int profileId,
+    required String audioPath,
+  }) async => throw UnimplementedError();
+}
+
 ChoiceSessionController _controller(
   _FakeContentRepository repo, {
   int rounds = 10,
+  _FakePracticeRepository? practice,
+  int? profileId,
+  ChoiceMode mode = ChoiceMode.quiz,
 }) {
   return ChoiceSessionController(
     repository: repo,
+    practiceRepository: practice,
+    profileId: profileId,
+    mode: mode,
     lessonId: 1,
     requestedRounds: rounds,
     random: Random(42), // deterministic shuffle
@@ -225,6 +264,92 @@ void main() {
       await controller.next();
 
       expect(controller.state.progress, closeTo(0.5, 0.001));
+    });
+
+    test('the finished session is submitted once', () async {
+      final practice = _FakePracticeRepository();
+      final controller = _controller(
+        _FakeContentRepository(wordCount: 2),
+        rounds: 2,
+        practice: practice,
+        profileId: 1,
+      );
+      await pumpEventQueue();
+
+      controller.answer(controller.state.round!.correctOptionId);
+      await controller.next();
+      controller.answer(999); // wrong
+      await controller.next();
+
+      expect(practice.submissions, 1);
+      expect(practice.lastSubmission?.correct, 1);
+      expect(practice.lastSubmission?.total, 2);
+      expect(practice.lastSubmission?.mode, 'QUIZ');
+      expect(controller.state.pointsAwarded, 10);
+      expect(controller.state.newAchievements, contains('First Practice'));
+    });
+
+    test('listen mode is reported as LISTEN', () async {
+      final practice = _FakePracticeRepository();
+      final controller = _controller(
+        _FakeContentRepository(wordCount: 1 + 1),
+        rounds: 2,
+        practice: practice,
+        profileId: 1,
+        mode: ChoiceMode.listen,
+      );
+      await pumpEventQueue();
+
+      controller.answer(1);
+      await controller.next();
+      controller.answer(1);
+      await controller.next();
+
+      expect(practice.lastSubmission?.mode, 'LISTEN');
+    });
+
+    test('nothing is submitted without a chosen learner', () async {
+      final practice = _FakePracticeRepository();
+      final controller = _controller(
+        _FakeContentRepository(wordCount: 2),
+        rounds: 2,
+        practice: practice,
+        profileId: null,
+      );
+      await pumpEventQueue();
+
+      controller.answer(1);
+      await controller.next();
+      controller.answer(1);
+      await controller.next();
+
+      expect(practice.submissions, 0);
+      expect(controller.state.stage, ChoiceStage.finished);
+    });
+
+    test('a failed submission still shows the child their score', () async {
+      final practice = _FakePracticeRepository()
+        ..error = const ApiException(
+          kind: ApiErrorKind.network,
+          message: 'Could not reach the server.',
+        );
+      final controller = _controller(
+        _FakeContentRepository(wordCount: 2),
+        rounds: 2,
+        practice: practice,
+        profileId: 1,
+      );
+      await pumpEventQueue();
+
+      controller.answer(controller.state.round!.correctOptionId);
+      await controller.next();
+      controller.answer(controller.state.round!.correctOptionId);
+      await controller.next();
+
+      // An error banner over a trophy would punish the child for a network
+      // problem they cannot fix.
+      expect(controller.state.stage, ChoiceStage.finished);
+      expect(controller.state.correctCount, 2);
     });
 
     test('isLastRound is true on the final question', () async {

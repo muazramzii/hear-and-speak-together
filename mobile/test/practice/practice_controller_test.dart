@@ -82,6 +82,22 @@ class _FakeRepository implements PracticeRepository {
     if (pending != null) return pending!.future;
     return Future.value(_result());
   }
+
+  @override
+  Future<QuizOutcome> submitQuizResult({
+    required int profileId,
+    required int lessonId,
+    required String mode,
+    required int correctCount,
+    required int totalRounds,
+  }) async {
+    // Not exercised here; the quiz path has its own tests.
+    return const QuizOutcome(
+      pointsAwarded: 0,
+      accuracyPercentage: 0,
+      newAchievements: [],
+    );
+  }
 }
 
 PracticeController _controller(_FakeRecorder recorder, _FakeRepository repo) {

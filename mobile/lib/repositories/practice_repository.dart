@@ -51,6 +51,60 @@ class PracticeRepository {
       throw ApiException.fromDio(error);
     }
   }
+
+  /// Records a finished Listen or Quiz session so its points persist.
+  ///
+  /// Rounds are scored on the device - the correct answer is known there - so
+  /// only the tally is sent. The server bounds what it will accept.
+  Future<QuizOutcome> submitQuizResult({
+    required int profileId,
+    required int lessonId,
+    required String mode,
+    required int correctCount,
+    required int totalRounds,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/practice/quiz-result/',
+        data: {
+          'profile_id': profileId,
+          'lesson_id': lessonId,
+          'mode': mode,
+          'correct_count': correctCount,
+          'total_rounds': totalRounds,
+        },
+      );
+      return QuizOutcome.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+}
+
+/// What the backend recorded for a finished quiz or listen session.
+class QuizOutcome {
+  const QuizOutcome({
+    required this.pointsAwarded,
+    required this.accuracyPercentage,
+    required this.newAchievements,
+  });
+
+  final int pointsAwarded;
+  final int accuracyPercentage;
+
+  /// Badges unlocked by this session, so the app can celebrate immediately.
+  final List<String> newAchievements;
+
+  factory QuizOutcome.fromJson(Map<String, dynamic> json) {
+    return QuizOutcome(
+      pointsAwarded: json['points_awarded'] as int? ?? 0,
+      accuracyPercentage: json['accuracy_percentage'] as int? ?? 0,
+      newAchievements: ((json['new_achievements'] as List?) ?? const [])
+          .map((item) => (item as Map)['name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList(),
+    );
+  }
 }
 
 final practiceRepositoryProvider = Provider<PracticeRepository>((ref) {

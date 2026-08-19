@@ -35,6 +35,7 @@ class LearnerProfile {
     required this.pointsIntoLevel,
     required this.pointsToNextLevel,
     required this.streakDays,
+    required this.shareCode,
   });
 
   final int id;
@@ -51,6 +52,10 @@ class LearnerProfile {
   final int pointsIntoLevel;
   final int pointsToNextLevel;
   final int streakDays;
+
+  /// Given to a teacher so they can follow this learner. Only ever returned
+  /// to the account that owns the profile.
+  final String shareCode;
 
   /// How far through the current level, in 0..1, for the progress bar.
   double get levelProgress {
@@ -70,6 +75,7 @@ class LearnerProfile {
       pointsIntoLevel: json['points_into_level'] as int? ?? 0,
       pointsToNextLevel: json['points_to_next_level'] as int? ?? 100,
       streakDays: json['streak_days'] as int? ?? 0,
+      shareCode: json['share_code'] as String? ?? '',
     );
   }
 }
