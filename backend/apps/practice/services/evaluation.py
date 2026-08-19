@@ -61,6 +61,11 @@ class PracticeEvaluationService:
         attempt = self._record(
             profile, word, language, result, audio_file, feedback_text
         )
+        # Runs after the attempt is committed, so analytics can never roll it
+        # back. The awards are attached for the response.
+        attempt.newly_earned_achievements = self.update_progress_and_awards(
+            profile, word
+        )
         return attempt, result
 
     # -- internals --------------------------------------------------------
@@ -173,3 +178,27 @@ class PracticeEvaluationService:
                 "updated_at",
             ]
         )
+
+    def update_progress_and_awards(self, profile, word):
+        """Refresh lesson progress and award any newly earned achievements.
+
+        Imported here rather than at module scope: `apps.progress` depends on
+        `apps.practice` for attempt data, so a top-level import would make the
+        two apps import each other.
+
+        Failures are logged and swallowed. Analytics are a read-side
+        convenience; losing them must never lose a child's score, which is
+        already committed by this point.
+        """
+        from apps.progress.services import achievements, analytics
+
+        try:
+            analytics.update_lesson_progress(profile, word.lesson)
+            return achievements.evaluate(profile)
+        except Exception:
+            logger.exception(
+                "Could not update progress for profile=%s lesson=%s",
+                profile.pk,
+                word.lesson_id,
+            )
+            return []

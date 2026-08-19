@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/", include("apps.content.urls")),
     path("api/", include("apps.profiles.urls")),
     path("api/", include("apps.practice.urls")),
+    path("api/", include("apps.progress.urls")),
 ]
 
 if settings.DEBUG:
