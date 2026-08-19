@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../providers/choice_session_provider.dart';
+import '../../widgets/word_visual.dart';
 
 /// Serves both Listen ("hear the sound, pick the picture") and Quiz.
 ///
@@ -291,15 +292,7 @@ class _OptionTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: option.imageUrl.isNotEmpty
-                      ? Image.network(
-                          option.imageUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) => const _ImageFallback(),
-                        )
-                      : const _ImageFallback(),
-                ),
+                Expanded(child: WordVisual(word: option, size: 56)),
                 if (showLabel) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -318,23 +311,6 @@ class _OptionTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Illustrations are not supplied yet, so a tile without one still has to be
-/// choosable - the word label carries the meaning.
-class _ImageFallback extends StatelessWidget {
-  const _ImageFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Icon(
-        Icons.image_outlined,
-        size: 40,
-        color: AppColors.textSecondary,
       ),
     );
   }

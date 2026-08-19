@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../repositories/content_repository.dart';
+import '../../widgets/word_visual.dart';
 
 /// Learn mode: browse a lesson's words one card at a time, hearing each.
 ///
@@ -172,24 +173,10 @@ class _WordCard extends ConsumerWidget {
               color: AppColors.blueSoft,
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
             ),
-            child: word.imageUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                    child: Image.network(
-                      word.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(
-                        Icons.image_outlined,
-                        size: 64,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  )
-                : const Icon(
-                    Icons.image_outlined,
-                    size: 64,
-                    color: AppColors.textSecondary,
-                  ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              child: WordVisual(word: word, size: 96, fit: BoxFit.cover),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(

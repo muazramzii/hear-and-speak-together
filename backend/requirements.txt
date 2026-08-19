@@ -17,6 +17,11 @@ django-filter>=24.3
 python-dotenv>=1.0,<2.0
 Pillow>=10.4
 
+# ---- Production serving ----
+# `manage.py runserver` is a development tool and must not be used to deploy.
+gunicorn>=23.0,<24.0
+whitenoise>=6.7,<7.0
+
 # ---- Speech (Azure AI Speech Pronunciation Assessment) ----
 # Only loaded when SPEECH_PROVIDER=azure; tests use the mock service.
 azure-cognitiveservices-speech>=1.40,<2.0

@@ -51,6 +51,26 @@ LANGUAGES = [
 ]
 
 # ---------------------------------------------------------------------------
+# Per-word emoji, keyed by (category slug, word position).
+#
+# Both languages teach the same concepts in the same order, so one table
+# serves both - `kucing` and `cat` are position 0 of "animals" and share 🐱.
+#
+# These are not decoration. A Listen round hides the word and shows four
+# pictures; with no illustration and no emoji every tile renders the same
+# placeholder and the exercise cannot be answered.
+# ---------------------------------------------------------------------------
+
+WORD_EMOJI = {
+    "animals": ["🐱", "🐶", "🐘", "🦁", "🐯", "🐦"],
+    "fruits": ["🍎", "🍌", "🍊", "🥭", "🍇"],
+    "vehicles": ["🚗", "🚌", "🚂", "⛵", "✈️"],
+    "home": ["🪑", "🍽️", "🚪", "🪟", "🛏️"],
+    "colours": ["🔴", "🔵", "🟢", "🟡", "🟣"],
+    "numbers": ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"],
+}
+
+# ---------------------------------------------------------------------------
 # Content. Each entry: (slug, name, icon, [(lesson title, [(word, meaning)])])
 # ---------------------------------------------------------------------------
 
@@ -362,6 +382,8 @@ class Command(BaseCommand):
                 )
                 counts["lessons"] += 1
 
+                emoji_for_category = WORD_EMOJI.get(slug, [])
+
                 for word_order, (text, meaning) in enumerate(words):
                     Word.objects.update_or_create(
                         lesson=lesson,
@@ -369,6 +391,11 @@ class Command(BaseCommand):
                         defaults={
                             "meaning": meaning,
                             "order": word_order,
+                            "emoji": (
+                                emoji_for_category[word_order]
+                                if word_order < len(emoji_for_category)
+                                else ""
+                            ),
                             "is_active": True,
                         },
                     )

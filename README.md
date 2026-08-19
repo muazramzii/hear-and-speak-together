@@ -5,11 +5,15 @@ helps children practise listening and speaking. Children hear a target word,
 record themselves saying it, and receive a pronunciation score with friendly,
 age-appropriate feedback.
 
-> **Status: feature-complete through Phase 8.**
+> **Status: feature-complete through Phase 9.**
 > Authentication, bilingual content, Azure pronunciation assessment, four
 > learning modes, analytics, achievements and a parent/teacher dashboard are
 > all built and tested. **The Azure integration has not yet been run against a
 > real Azure subscription** — see [docs/azure-speech.md](docs/azure-speech.md).
+
+To see it running, follow [Backend setup](#backend-setup), then
+`python manage.py seed_data`, `seed_achievements` and `seed_demo`, and sign in
+as `demo@hearspeak.test` / `HearSpeak!2026`.
 
 ---
 
@@ -44,8 +48,12 @@ hear and speak/
 ├── backend/                 Django REST API
 │   ├── config/              settings, root URLs, WSGI/ASGI
 │   ├── apps/
-│   │   ├── core/            health check + shared utilities
-│   │   └── accounts/        custom User, JWT auth, role permissions
+│   │   ├── core/            health check, API root, seed_demo
+│   │   ├── accounts/        custom User, JWT auth, role permissions
+│   │   ├── content/         languages, categories, lessons, words
+│   │   ├── profiles/        learner profiles and share codes
+│   │   ├── practice/        speech assessment, feedback, quiz results
+│   │   └── progress/        analytics, achievements, supervisor access
 │   ├── requirements.txt
 │   └── .env.example         copy to .env and fill in
 ├── mobile/                  Flutter application
@@ -161,25 +169,6 @@ origin to `CORS_ALLOWED_ORIGINS` in `backend/.env` and add the host to
 
 ---
 
-## Tests
-
-Backend:
-
-```bash
-cd backend && .venv\Scripts\python.exe manage.py test
-```
-
-Mobile:
-
-```bash
-cd mobile && flutter test
-```
-
-Neither suite makes a network call to Azure or to any LLM provider, so tests
-run offline and cost nothing.
-
----
-
 ## Security notes
 
 - `.env` is git-ignored; only `.env.example` is committed.
@@ -212,7 +201,7 @@ and a language model never does.
 
 ## Tests
 
-**303 tests** — 210 backend, 93 Flutter. All run offline and call no paid API.
+**330 tests** — 227 backend, 103 Flutter. All run offline and call no paid API.
 
 ```bash
 cd backend && .venv\Scripts\python.exe manage.py test

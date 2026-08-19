@@ -10,6 +10,7 @@ import '../../models/content.dart';
 import '../../models/practice_result.dart';
 import '../../providers/practice_provider.dart';
 import '../../repositories/profile_repository.dart';
+import '../../widgets/word_visual.dart';
 import 'widgets/score_gauge.dart';
 
 /// The Speak (AI) screen: hear the word, say it, get scored.
@@ -200,24 +201,10 @@ class _WordCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (word.imageUrl.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-              child: Image.network(
-                word.imageUrl,
-                height: 140,
-                fit: BoxFit.contain,
-                // A missing illustration must not break the exercise - the
-                // word itself is what matters.
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-            )
-          else
-            const Icon(
-              Icons.image_outlined,
-              size: 72,
-              color: AppColors.textSecondary,
-            ),
+          SizedBox(
+            height: 140,
+            child: WordVisual(word: word, size: 88),
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             word.text.toUpperCase(),

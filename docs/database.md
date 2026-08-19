@@ -91,6 +91,16 @@ offered in Listen and Quiz. Modelling them as relations to *real words* rather
 than free text means every option is genuine vocabulary in the correct language
 and comes with its own image.
 
+`Word.emoji` is a **playability requirement, not decoration.** A Listen round
+hides the word and shows four pictures. With no illustration and no emoji every
+tile falls back to the same placeholder icon, and the question can only be
+guessed. The seed data gives all 62 words an emoji, keyed by category and
+position so `cat` and `kucing` share 🐱. A test asserts no word is left without
+a visual, and another asserts the four options in a round are distinct.
+
+The client's fallback order is illustration → emoji → generic icon, so real
+artwork simply takes precedence once it is supplied.
+
 ---
 
 ## PracticeAttempt vs QuizSession
