@@ -184,6 +184,66 @@ class StudentListView(APIView):
         )
 
 
+class LinkStudentView(APIView):
+    """POST /api/students/link/ - a teacher follows a learner by share code.
+
+    Deliberately code-based rather than "search for a student": a supervisor
+    must never be able to discover learners they were not given access to.
+    """
+
+    permission_classes = [IsAuthenticated, IsParentOrTeacher]
+
+    def post(self, request):
+        code = (request.data.get("share_code") or "").strip().upper()
+        if not code:
+            return Response({"share_code": ["Please enter a code."]}, status=400)
+
+        profile = Profile.objects.filter(share_code=code).first()
+        if profile is None:
+            # Same message whether the code is wrong or simply unused, so the
+            # endpoint cannot be used to probe for valid codes.
+            return Response(
+                {"share_code": ["That code is not valid."]}, status=400
+            )
+
+        if profile.owner_id == request.user.id:
+            return Response(
+                {"share_code": ["This learner is already yours."]}, status=400
+            )
+
+        link, created = StudentLink.objects.get_or_create(
+            supervisor=request.user, profile=profile
+        )
+
+        return Response(
+            {
+                "linked": True,
+                "already_linked": not created,
+                "profile": {
+                    "id": profile.id,
+                    "name": profile.name,
+                    "avatar": profile.avatar,
+                },
+            },
+            status=201 if created else 200,
+        )
+
+
+class UnlinkStudentView(APIView):
+    """DELETE /api/students/{id}/link/ - stop following a learner."""
+
+    permission_classes = [IsAuthenticated, IsParentOrTeacher]
+
+    def delete(self, request, profile_id):
+        deleted, _ = StudentLink.objects.filter(
+            supervisor=request.user, profile_id=profile_id
+        ).delete()
+
+        if not deleted:
+            return Response({"detail": "No such link."}, status=404)
+        return Response(status=204)
+
+
 class StudentProgressView(APIView):
     """GET /api/students/{id}/progress/ - one learner, in full."""
 

@@ -33,6 +33,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "points_to_next_level",
             "streak_days",
             "last_practised_on",
+            "share_code",
             "created_at",
         ]
         read_only_fields = fields

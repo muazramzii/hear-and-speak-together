@@ -21,6 +21,12 @@ urlpatterns = [
         name="recommendations",
     ),
     path("students/", views.StudentListView.as_view(), name="students"),
+    path("students/link/", views.LinkStudentView.as_view(), name="student-link"),
+    path(
+        "students/<int:profile_id>/link/",
+        views.UnlinkStudentView.as_view(),
+        name="student-unlink",
+    ),
     path(
         "students/<int:profile_id>/progress/",
         views.StudentProgressView.as_view(),

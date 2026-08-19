@@ -80,6 +80,27 @@ class AnalyticsTests(TestCase):
         self.assertEqual(summary["average_score"], 85)
         self.assertEqual(summary["words_practised"], 2)
 
+    def test_quiz_sessions_count_as_activity_but_not_as_pronunciation(self):
+        """A tap on a picture says nothing about how a child sounds, so it
+        must not move the score average - but it is still practice."""
+        from apps.practice.models import QuizMode, QuizSession
+
+        attempt(self.profile, self.words[0], 90)
+        QuizSession.objects.create(
+            profile=self.profile,
+            lesson=self.lesson,
+            mode=QuizMode.QUIZ,
+            correct_count=4,
+            total_rounds=5,
+        )
+
+        summary = analytics.overall_summary(self.profile)
+
+        self.assertEqual(summary["average_score"], 90)
+        self.assertEqual(summary["practice_sessions"], 1)
+        self.assertEqual(summary["quiz_sessions"], 1)
+        self.assertEqual(summary["total_sessions"], 2)
+
     def test_words_learned_uses_the_best_attempt_not_the_average(self):
         """A child who struggled then succeeded has learned the word."""
         attempt(self.profile, self.words[0], 40)
