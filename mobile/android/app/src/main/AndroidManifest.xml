@@ -1,6 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required to reach the Django API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required to record the child speaking. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- Lets the app query whether a text-to-speech engine is installed, so
+         the listen button can be hidden rather than silently doing nothing. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
+    </queries>
 
     <application
         android:label="Hear &amp; Speak Together"
