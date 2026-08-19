@@ -45,9 +45,9 @@ class AppTextField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
@@ -79,10 +79,7 @@ class AppTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-              borderSide: const BorderSide(
-                color: AppColors.primary,
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -119,9 +116,9 @@ class AppErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.danger,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.danger),
             ),
           ),
         ],

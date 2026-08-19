@@ -36,9 +36,7 @@ class _FakeContentRepository implements ContentRepository {
       difficulty: 'BEGINNER',
       imageUrl: '',
       wordCount: wordCount,
-      words: [
-        for (var i = 0; i < wordCount; i++) _word(i + 1, 'word$i'),
-      ],
+      words: [for (var i = 0; i < wordCount; i++) _word(i + 1, 'word$i')],
     );
   }
 
@@ -152,11 +150,12 @@ void main() {
     });
 
     test('a failed lesson fetch surfaces the message', () async {
-      final repo = _FakeContentRepository()
-        ..lessonError = const ApiException(
-          kind: ApiErrorKind.network,
-          message: 'Could not reach the server.',
-        );
+      final repo =
+          _FakeContentRepository()
+            ..lessonError = const ApiException(
+              kind: ApiErrorKind.network,
+              message: 'Could not reach the server.',
+            );
       final controller = _controller(repo);
       await pumpEventQueue();
 
@@ -329,11 +328,12 @@ void main() {
     });
 
     test('a failed submission still shows the child their score', () async {
-      final practice = _FakePracticeRepository()
-        ..error = const ApiException(
-          kind: ApiErrorKind.network,
-          message: 'Could not reach the server.',
-        );
+      final practice =
+          _FakePracticeRepository()
+            ..error = const ApiException(
+              kind: ApiErrorKind.network,
+              message: 'Could not reach the server.',
+            );
       final controller = _controller(
         _FakeContentRepository(wordCount: 2),
         rounds: 2,

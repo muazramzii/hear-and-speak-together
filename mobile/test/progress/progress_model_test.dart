@@ -109,7 +109,12 @@ void main() {
           {'lesson_id': 1, 'title': 'Animals', 'completion_percentage': 25},
         ],
         'categories': [
-          {'category_id': 1, 'name': 'Animals', 'average_score': 60, 'is_weak': true},
+          {
+            'category_id': 1,
+            'name': 'Animals',
+            'average_score': 60,
+            'is_weak': true,
+          },
         ],
         'weak_words': [
           {'word_id': 3, 'text': 'gajah', 'average_score': 55, 'attempts': 3},

@@ -1,6 +1,6 @@
 # Testing
 
-**346 tests** — 243 backend, 103 Flutter. All run offline, need no API key, and
+**358 tests** — 255 backend, 103 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -42,7 +42,7 @@ the very bug the capability layer exists to prevent.
 
 ## What is covered
 
-### Backend (243)
+### Backend (255)
 
 | Area | Examples |
 | --- | --- |
@@ -137,6 +137,32 @@ allow-listed explicitly.
 
 ---
 
+## Continuous integration
+
+`.github/workflows/tests.yml` runs both suites on every push and pull request.
+It needs **no secrets**: `SPEECH_PROVIDER` and `AI_PROVIDER` default to their
+mocks, so CI never spends money or needs an Azure key.
+
+| Job | Steps |
+| --- | --- |
+| Django | migration-drift check, `manage.py check`, full test suite against a PostgreSQL 18 service container |
+| Flutter | `dart format` check, `flutter analyze`, full test suite |
+
+The migration-drift step (`makemigrations --check --dry-run`) fails the build
+if a model was changed without a matching migration — a mistake that otherwise
+only shows up when someone else pulls and cannot migrate.
+
+---
+
+## Verifying Azure for real
+
+The one thing CI cannot cover, by design. `manage.py check_azure` makes a
+single deliberate call and reports what came back — see
+[azure-speech.md](azure-speech.md). Its own logic is tested with the service
+patched out; the live call is a manual step.
+
+---
+
 ## End-to-end scripts
 
 Each phase was also verified against a running server with a script under
@@ -153,7 +179,9 @@ server and a seeded database.
 Stated plainly, because a test report that overclaims is worse than none.
 
 - **The real Azure service has never been called.** Everything is verified
-  through the mock. The first live call is still ahead.
+  through the mock. `manage.py check_azure` exists to make that first live
+  call a deliberate, informative step, but it has only been exercised with the
+  service patched out — nobody has yet run it against a real subscription.
 - **No microphone hardware test.** Recording is verified through a fake; real
   device capture needs an emulator or phone.
 - **No widget tests for the newer screens** — Learn, Listen, Quiz, Progress,

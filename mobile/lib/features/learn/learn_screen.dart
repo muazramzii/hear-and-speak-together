@@ -46,21 +46,26 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
       body: SafeArea(
         child: lesson.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _ErrorState(
-            message: error is ApiException
-                ? error.message
-                : context.l10n.errorGeneric,
-            onRetry: () => ref.invalidate(lessonProvider(widget.lessonId)),
-          ),
-          data: (data) => data.words.isEmpty
-              ? Center(child: Text(context.l10n.learnNoWords))
-              : _WordPager(
-                  words: data.words,
-                  controller: _pageController,
-                  index: _index,
-                  languageCode: widget.languageCode,
-                  onIndexChanged: (value) => setState(() => _index = value),
-                ),
+          error:
+              (error, _) => _ErrorState(
+                message:
+                    error is ApiException
+                        ? error.message
+                        : context.l10n.errorGeneric,
+                onRetry: () => ref.invalidate(lessonProvider(widget.lessonId)),
+              ),
+          data:
+              (data) =>
+                  data.words.isEmpty
+                      ? Center(child: Text(context.l10n.learnNoWords))
+                      : _WordPager(
+                        words: data.words,
+                        controller: _pageController,
+                        index: _index,
+                        languageCode: widget.languageCode,
+                        onIndexChanged:
+                            (value) => setState(() => _index = value),
+                      ),
         ),
       ),
     );
@@ -91,18 +96,19 @@ class _WordPager extends ConsumerWidget {
             controller: controller,
             itemCount: words.length,
             onPageChanged: onIndexChanged,
-            itemBuilder: (context, i) => Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: _WordCard(
-                    word: words[i],
-                    languageCode: languageCode,
+            itemBuilder:
+                (context, i) => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: _WordCard(
+                        word: words[i],
+                        languageCode: languageCode,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
           ),
         ),
         Padding(
@@ -113,12 +119,13 @@ class _WordPager extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton.filledTonal(
-                    onPressed: index == 0
-                        ? null
-                        : () => controller.previousPage(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeOut,
-                          ),
+                    onPressed:
+                        index == 0
+                            ? null
+                            : () => controller.previousPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut,
+                            ),
                     icon: const Icon(Icons.chevron_left_rounded),
                     tooltip: context.l10n.learnPrevious,
                   ),
@@ -127,12 +134,13 @@ class _WordPager extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   IconButton.filledTonal(
-                    onPressed: index >= words.length - 1
-                        ? null
-                        : () => controller.nextPage(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeOut,
-                          ),
+                    onPressed:
+                        index >= words.length - 1
+                            ? null
+                            : () => controller.nextPage(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut,
+                            ),
                     icon: const Icon(Icons.chevron_right_rounded),
                     tooltip: context.l10n.learnNext,
                   ),
@@ -199,9 +207,10 @@ class _WordCard extends ConsumerWidget {
               IconButton.filled(
                 iconSize: 32,
                 padding: const EdgeInsets.all(AppSpacing.md),
-                onPressed: () => ref
-                    .read(wordSpeakerProvider)
-                    .speak(word.text, languageCode: languageCode),
+                onPressed:
+                    () => ref
+                        .read(wordSpeakerProvider)
+                        .speak(word.text, languageCode: languageCode),
                 icon: const Icon(Icons.volume_up_rounded),
                 tooltip: context.l10n.learnListen,
               ),
@@ -209,9 +218,14 @@ class _WordCard extends ConsumerWidget {
               IconButton.filledTonal(
                 iconSize: 28,
                 padding: const EdgeInsets.all(AppSpacing.md),
-                onPressed: () => ref
-                    .read(wordSpeakerProvider)
-                    .speak(word.text, languageCode: languageCode, slow: true),
+                onPressed:
+                    () => ref
+                        .read(wordSpeakerProvider)
+                        .speak(
+                          word.text,
+                          languageCode: languageCode,
+                          slow: true,
+                        ),
                 icon: const Icon(Icons.slow_motion_video_rounded),
                 tooltip: context.l10n.learnListenSlowly,
               ),

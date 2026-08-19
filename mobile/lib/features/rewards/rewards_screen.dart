@@ -34,27 +34,32 @@ class RewardsScreen extends ConsumerWidget {
       body: SafeArea(
         child: badges.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    error is ApiException ? error.message : l10n.errorGeneric,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
+          error:
+              (error, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        error is ApiException
+                            ? error.message
+                            : l10n.errorGeneric,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FilledButton(
+                        onPressed:
+                            () => ref.invalidate(
+                              achievementsProvider(profile.id),
+                            ),
+                        child: Text(l10n.actionTryAgain),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: () =>
-                        ref.invalidate(achievementsProvider(profile.id)),
-                    child: Text(l10n.actionTryAgain),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
           data: (items) => _BadgeList(badges: items),
         ),
       ),
@@ -119,9 +124,10 @@ class _BadgeRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Semantics(
         // State is announced, not conveyed by opacity alone.
-        label: badge.earned
-            ? '${badge.name}, ${context.l10n.rewardsEarned}'
-            : '${badge.name}, ${context.l10n.rewardsLocked}',
+        label:
+            badge.earned
+                ? '${badge.name}, ${context.l10n.rewardsEarned}'
+                : '${badge.name}, ${context.l10n.rewardsLocked}',
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
@@ -135,10 +141,7 @@ class _BadgeRow extends StatelessWidget {
             children: [
               Opacity(
                 opacity: badge.earned ? 1 : 0.35,
-                child: Text(
-                  badge.icon,
-                  style: const TextStyle(fontSize: 34),
-                ),
+                child: Text(badge.icon, style: const TextStyle(fontSize: 34)),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -158,10 +161,7 @@ class _BadgeRow extends StatelessWidget {
                 ),
               ),
               if (badge.earned)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.success,
-                )
+                const Icon(Icons.check_circle_rounded, color: AppColors.success)
               else
                 const Icon(
                   Icons.lock_outline_rounded,

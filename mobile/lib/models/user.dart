@@ -16,7 +16,8 @@ enum UserRole {
   }
 
   /// Parents and teachers share the monitoring shell.
-  bool get supervisesStudents => this == UserRole.parent || this == UserRole.teacher;
+  bool get supervisesStudents =>
+      this == UserRole.parent || this == UserRole.teacher;
 }
 
 /// The languages the app teaches. Mirrors the backend's `LanguageCode`.

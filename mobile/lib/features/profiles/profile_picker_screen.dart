@@ -30,12 +30,14 @@ class ProfilePickerScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 460),
             child: profiles.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorState(
-                message: error is ApiException
-                    ? error.message
-                    : l10n.errorGeneric,
-                onRetry: () => ref.invalidate(profilesProvider),
-              ),
+              error:
+                  (error, _) => _ErrorState(
+                    message:
+                        error is ApiException
+                            ? error.message
+                            : l10n.errorGeneric,
+                    onRetry: () => ref.invalidate(profilesProvider),
+                  ),
               data: (items) => _ProfileList(profiles: items),
             ),
           ),
@@ -430,9 +432,8 @@ class _CreateProfileSheetState extends ConsumerState<_CreateProfileSheet> {
                 ChoiceChip(
                   label: Text(_AvatarBadge._glyphs[avatar] ?? '?'),
                   selected: _avatar == avatar,
-                  onSelected: _busy
-                      ? null
-                      : (_) => setState(() => _avatar = avatar),
+                  onSelected:
+                      _busy ? null : (_) => setState(() => _avatar = avatar),
                 ),
             ],
           ),
@@ -452,10 +453,11 @@ class _CreateProfileSheetState extends ConsumerState<_CreateProfileSheet> {
             ],
             selected: {_languageCode},
             showSelectedIcon: false,
-            onSelectionChanged: _busy
-                ? null
-                : (selection) =>
-                      setState(() => _languageCode = selection.first),
+            onSelectionChanged:
+                _busy
+                    ? null
+                    : (selection) =>
+                        setState(() => _languageCode = selection.first),
           ),
           const SizedBox(height: AppSpacing.xl),
 

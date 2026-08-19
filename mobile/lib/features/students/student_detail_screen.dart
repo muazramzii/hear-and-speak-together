@@ -26,25 +26,30 @@ class StudentDetailScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 520),
             child: report.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      error is ApiException ? error.message : l10n.errorGeneric,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
+              error:
+                  (error, _) => Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          error is ApiException
+                              ? error.message
+                              : l10n.errorGeneric,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        FilledButton(
+                          onPressed:
+                              () => ref.invalidate(
+                                studentProgressProvider(profileId),
+                              ),
+                          child: Text(l10n.actionTryAgain),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    FilledButton(
-                      onPressed: () =>
-                          ref.invalidate(studentProgressProvider(profileId)),
-                      child: Text(l10n.actionTryAgain),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
               data: (data) => _DetailView(report: data),
             ),
           ),
@@ -70,9 +75,10 @@ class _DetailView extends StatelessWidget {
         Row(
           children: [
             _Stat(
-              value: summary.averageScore == null
-                  ? '-'
-                  : '${summary.averageScore}%',
+              value:
+                  summary.averageScore == null
+                      ? '-'
+                      : '${summary.averageScore}%',
               label: l10n.progressAverageScore,
             ),
             _Stat(
@@ -149,9 +155,8 @@ class _DetailView extends StatelessWidget {
                 Text(
                   '${category.averageScore}%',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: category.isWeak
-                        ? AppColors.warning
-                        : AppColors.success,
+                    color:
+                        category.isWeak ? AppColors.warning : AppColors.success,
                   ),
                 ),
               ],

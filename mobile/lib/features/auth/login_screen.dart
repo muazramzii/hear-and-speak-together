@@ -104,33 +104,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ? Icons.visibility_off_rounded
                               : Icons.visibility_rounded,
                         ),
-                        tooltip: _obscurePassword
-                            ? 'Show password'
-                            : 'Hide password',
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
+                        tooltip:
+                            _obscurePassword
+                                ? 'Show password'
+                                : 'Hide password',
+                        onPressed:
+                            () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
                     FilledButton(
                       onPressed: busy ? null : _submit,
-                      child: busy
-                          ? const _ButtonSpinner(label: 'Signing in...')
-                          : const Text('Sign In'),
+                      child:
+                          busy
+                              ? const _ButtonSpinner(label: 'Signing in...')
+                              : const Text('Sign In'),
                     ),
                     const SizedBox(height: AppSpacing.md),
 
                     TextButton(
-                      onPressed: busy
-                          ? null
-                          : () {
-                              ref
-                                  .read(authControllerProvider.notifier)
-                                  .clearError();
-                              context.goNamed(AppRoutes.registerName);
-                            },
+                      onPressed:
+                          busy
+                              ? null
+                              : () {
+                                ref
+                                    .read(authControllerProvider.notifier)
+                                    .clearError();
+                                context.goNamed(AppRoutes.registerName);
+                              },
                       child: const Text('New here? Create an account'),
                     ),
                   ],

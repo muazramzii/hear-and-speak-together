@@ -97,10 +97,7 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isSubmitting: true, clearError: true);
 
     try {
-      final session = await _repository.login(
-        email: email,
-        password: password,
-      );
+      final session = await _repository.login(email: email, password: password);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: session.user,
@@ -191,13 +188,14 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-      return AuthController(
-        repository: ref.watch(authRepositoryProvider),
-        events: ref.watch(authEventsProvider).stream,
-      );
-    });
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(
+      repository: ref.watch(authRepositoryProvider),
+      events: ref.watch(authEventsProvider).stream,
+    );
+  },
+);
 
 /// The signed-in user, or null. Convenience for widgets that only need this.
 final currentUserProvider = Provider<User?>((ref) {

@@ -91,9 +91,8 @@ class ChoiceSessionState {
       round: round ?? this.round,
       roundNumber: roundNumber ?? this.roundNumber,
       totalRounds: totalRounds ?? this.totalRounds,
-      selectedOptionId: clearSelection
-          ? null
-          : (selectedOptionId ?? this.selectedOptionId),
+      selectedOptionId:
+          clearSelection ? null : (selectedOptionId ?? this.selectedOptionId),
       correctCount: correctCount ?? this.correctCount,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       errorCode: clearError ? null : (errorCode ?? this.errorCode),

@@ -63,19 +63,23 @@ class PracticeScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 460),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppSpacing.lg),
-              child: state.stage == PracticeStage.result && state.result != null
-                  ? _ResultView(
-                      result: state.result!,
-                      onTryAgain: () =>
-                          ref.read(practiceControllerProvider.notifier).reset(),
-                      onNextWord: onNextWord,
-                    )
-                  : _PromptView(
-                      word: word,
-                      languageCode: languageCode,
-                      state: state,
-                      profileId: profile?.id,
-                    ),
+              child:
+                  state.stage == PracticeStage.result && state.result != null
+                      ? _ResultView(
+                        result: state.result!,
+                        onTryAgain:
+                            () =>
+                                ref
+                                    .read(practiceControllerProvider.notifier)
+                                    .reset(),
+                        onNextWord: onNextWord,
+                      )
+                      : _PromptView(
+                        word: word,
+                        languageCode: languageCode,
+                        state: state,
+                        profileId: profile?.id,
+                      ),
             ),
           ),
         ),
@@ -111,25 +115,27 @@ class _PromptView extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             OutlinedButton.icon(
-              onPressed: state.isBusy
-                  ? null
-                  : () => ref
-                        .read(wordSpeakerProvider)
-                        .speak(word.text, languageCode: languageCode),
+              onPressed:
+                  state.isBusy
+                      ? null
+                      : () => ref
+                          .read(wordSpeakerProvider)
+                          .speak(word.text, languageCode: languageCode),
               icon: const Icon(Icons.volume_up_rounded),
               label: Text(context.l10n.learnListen),
             ),
             const SizedBox(width: AppSpacing.md),
             OutlinedButton.icon(
-              onPressed: state.isBusy
-                  ? null
-                  : () => ref
-                        .read(wordSpeakerProvider)
-                        .speak(
-                          word.text,
-                          languageCode: languageCode,
-                          slow: true,
-                        ),
+              onPressed:
+                  state.isBusy
+                      ? null
+                      : () => ref
+                          .read(wordSpeakerProvider)
+                          .speak(
+                            word.text,
+                            languageCode: languageCode,
+                            slow: true,
+                          ),
               icon: const Icon(Icons.slow_motion_video_rounded),
               label: Text(context.l10n.practiceSlowly),
             ),
@@ -156,12 +162,13 @@ class _PromptView extends ConsumerWidget {
         _MicrophoneButton(
           stage: state.stage,
           onStart: controller.startRecording,
-          onStop: profileId == null
-              ? null
-              : () => controller.stopAndEvaluate(
-                  wordId: word.id,
-                  profileId: profileId!,
-                ),
+          onStop:
+              profileId == null
+                  ? null
+                  : () => controller.stopAndEvaluate(
+                    wordId: word.id,
+                    profileId: profileId!,
+                  ),
         ),
 
         if (profileId == null) ...[
@@ -201,10 +208,7 @@ class _WordCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          SizedBox(
-            height: 140,
-            child: WordVisual(word: word, size: 88),
-          ),
+          SizedBox(height: 140, child: WordVisual(word: word, size: 88)),
           const SizedBox(height: AppSpacing.md),
           Text(
             word.text.toUpperCase(),
@@ -311,9 +315,10 @@ class _MicrophoneButton extends StatelessWidget {
       children: [
         Semantics(
           button: true,
-          label: listening
-              ? context.l10n.practiceStopRecording
-              : context.l10n.practiceStartRecording,
+          label:
+              listening
+                  ? context.l10n.practiceStopRecording
+                  : context.l10n.practiceStartRecording,
           child: GestureDetector(
             onTap: processing ? null : (listening ? onStop : onStart),
             child: AnimatedContainer(
@@ -321,9 +326,10 @@ class _MicrophoneButton extends StatelessWidget {
               height: 96,
               width: 96,
               decoration: BoxDecoration(
-                color: processing
-                    ? AppColors.border
-                    : (listening ? AppColors.danger : AppColors.primary),
+                color:
+                    processing
+                        ? AppColors.border
+                        : (listening ? AppColors.danger : AppColors.primary),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -371,10 +377,7 @@ class _ErrorPanel extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: AppColors.danger,
-              ),
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(

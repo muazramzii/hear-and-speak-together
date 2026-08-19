@@ -201,7 +201,7 @@ and a language model never does.
 
 ## Tests
 
-**346 tests** — 243 backend, 103 Flutter. All run offline and call no paid API.
+**358 tests** — 255 backend, 103 Flutter. All run offline and call no paid API.
 
 ```bash
 cd backend && .venv\Scripts\python.exe manage.py test

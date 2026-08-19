@@ -33,15 +33,20 @@ class ProgressScreen extends ConsumerWidget {
       body: SafeArea(
         child: report.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _ErrorState(
-            message: error is ApiException ? error.message : l10n.errorGeneric,
-            onRetry: () => ref.invalidate(progressReportProvider(profile.id)),
-          ),
-          data: (data) => RefreshIndicator(
-            onRefresh: () async =>
-                ref.invalidate(progressReportProvider(profile.id)),
-            child: _ReportView(report: data),
-          ),
+          error:
+              (error, _) => _ErrorState(
+                message:
+                    error is ApiException ? error.message : l10n.errorGeneric,
+                onRetry:
+                    () => ref.invalidate(progressReportProvider(profile.id)),
+              ),
+          data:
+              (data) => RefreshIndicator(
+                onRefresh:
+                    () async =>
+                        ref.invalidate(progressReportProvider(profile.id)),
+                child: _ReportView(report: data),
+              ),
         ),
       ),
     );
@@ -85,9 +90,10 @@ class _ReportView extends StatelessWidget {
               _StatTile(
                 // A dash, not 0% - nothing measured is not the same as a
                 // score of zero.
-                value: summary.averageScore == null
-                    ? '-'
-                    : '${summary.averageScore}%',
+                value:
+                    summary.averageScore == null
+                        ? '-'
+                        : '${summary.averageScore}%',
                 label: l10n.progressAverageScore,
                 tint: AppColors.greenSoft,
                 icon: Icons.insights_rounded,
@@ -205,10 +211,7 @@ class _WeakWordRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    word.text,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
+                  Text(word.text, style: Theme.of(context).textTheme.bodyLarge),
                   Text(
                     context.l10n.progressAttemptsCount(word.attempts),
                     style: Theme.of(context).textTheme.labelSmall,
@@ -257,9 +260,8 @@ class _CategoryRow extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: category.averageScore / 100,
                     backgroundColor: AppColors.border,
-                    color: category.isWeak
-                        ? AppColors.warning
-                        : AppColors.success,
+                    color:
+                        category.isWeak ? AppColors.warning : AppColors.success,
                   ),
                 ),
               ],

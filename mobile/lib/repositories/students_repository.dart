@@ -81,8 +81,8 @@ class StudentsRepository {
         '/students/link/',
         data: {'share_code': shareCode.trim().toUpperCase()},
       );
-      final profile = (response.data?['profile'] as Map?)
-          ?.cast<String, dynamic>();
+      final profile =
+          (response.data?['profile'] as Map?)?.cast<String, dynamic>();
       return profile?['name'] as String? ?? '';
     } on DioException catch (error) {
       throw ApiException.fromDio(error);

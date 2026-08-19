@@ -38,30 +38,36 @@ class LessonListScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 520),
             child: lessons.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorState(
-                message: error is ApiException
-                    ? error.message
-                    : l10n.errorGeneric,
-                onRetry: () =>
-                    ref.invalidate(lessonsForLanguageProvider(languageCode)),
-              ),
-              data: (items) => items.isEmpty
-                  ? Center(child: Text(l10n.errorNoLessons))
-                  : ListView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      children: [
-                        Text(
-                          l10n.lessonsChoose,
-                          style: Theme.of(context).textTheme.bodyMedium,
+              error:
+                  (error, _) => _ErrorState(
+                    message:
+                        error is ApiException
+                            ? error.message
+                            : l10n.errorGeneric,
+                    onRetry:
+                        () => ref.invalidate(
+                          lessonsForLanguageProvider(languageCode),
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        for (final lesson in items)
-                          _LessonTile(
-                            lesson: lesson,
-                            onTap: () => _open(context, lesson),
+                  ),
+              data:
+                  (items) =>
+                      items.isEmpty
+                          ? Center(child: Text(l10n.errorNoLessons))
+                          : ListView(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            children: [
+                              Text(
+                                l10n.lessonsChoose,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              for (final lesson in items)
+                                _LessonTile(
+                                  lesson: lesson,
+                                  onTap: () => _open(context, lesson),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
             ),
           ),
         ),
@@ -103,29 +109,38 @@ class LearnLessonListScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 520),
             child: lessons.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => _ErrorState(
-                message: error is ApiException
-                    ? error.message
-                    : l10n.errorGeneric,
-                onRetry: () =>
-                    ref.invalidate(lessonsForLanguageProvider(languageCode)),
-              ),
-              data: (items) => items.isEmpty
-                  ? Center(child: Text(l10n.errorNoLessons))
-                  : ListView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      children: [
-                        for (final lesson in items)
-                          _LessonTile(
-                            lesson: lesson,
-                            onTap: () => context.pushNamed(
-                              AppRoutes.learnName,
-                              pathParameters: {'lessonId': '${lesson.id}'},
-                              queryParameters: {'lang': languageCode},
-                            ),
+              error:
+                  (error, _) => _ErrorState(
+                    message:
+                        error is ApiException
+                            ? error.message
+                            : l10n.errorGeneric,
+                    onRetry:
+                        () => ref.invalidate(
+                          lessonsForLanguageProvider(languageCode),
+                        ),
+                  ),
+              data:
+                  (items) =>
+                      items.isEmpty
+                          ? Center(child: Text(l10n.errorNoLessons))
+                          : ListView(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            children: [
+                              for (final lesson in items)
+                                _LessonTile(
+                                  lesson: lesson,
+                                  onTap:
+                                      () => context.pushNamed(
+                                        AppRoutes.learnName,
+                                        pathParameters: {
+                                          'lessonId': '${lesson.id}',
+                                        },
+                                        queryParameters: {'lang': languageCode},
+                                      ),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
             ),
           ),
         ),

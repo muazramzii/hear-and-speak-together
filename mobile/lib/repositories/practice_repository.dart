@@ -99,10 +99,11 @@ class QuizOutcome {
     return QuizOutcome(
       pointsAwarded: json['points_awarded'] as int? ?? 0,
       accuracyPercentage: json['accuracy_percentage'] as int? ?? 0,
-      newAchievements: ((json['new_achievements'] as List?) ?? const [])
-          .map((item) => (item as Map)['name'] as String? ?? '')
-          .where((name) => name.isNotEmpty)
-          .toList(),
+      newAchievements:
+          ((json['new_achievements'] as List?) ?? const [])
+              .map((item) => (item as Map)['name'] as String? ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList(),
     );
   }
 }

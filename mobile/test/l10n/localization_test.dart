@@ -33,10 +33,11 @@ void main() {
     bool isMessage(String key) => !key.startsWith('@');
 
     test('every English string has a Malay translation', () {
-      final missing = english.keys
-          .where(isMessage)
-          .where((key) => !malay.containsKey(key))
-          .toList();
+      final missing =
+          english.keys
+              .where(isMessage)
+              .where((key) => !malay.containsKey(key))
+              .toList();
 
       expect(
         missing,
@@ -46,10 +47,11 @@ void main() {
     });
 
     test('Malay has no orphan keys', () {
-      final orphans = malay.keys
-          .where(isMessage)
-          .where((key) => !english.containsKey(key))
-          .toList();
+      final orphans =
+          malay.keys
+              .where(isMessage)
+              .where((key) => !english.containsKey(key))
+              .toList();
 
       expect(orphans, isEmpty);
     });
@@ -72,11 +74,12 @@ void main() {
         'quizTitle',
       };
 
-      final untranslated = english.keys
-          .where(isMessage)
-          .where((key) => !intentionallyShared.contains(key))
-          .where((key) => english[key] == malay[key])
-          .toList();
+      final untranslated =
+          english.keys
+              .where(isMessage)
+              .where((key) => !intentionallyShared.contains(key))
+              .where((key) => english[key] == malay[key])
+              .toList();
 
       expect(untranslated, isEmpty);
     });

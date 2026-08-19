@@ -34,24 +34,25 @@ class _SpeakLessonScreenState extends ConsumerState<SpeakLessonScreen> {
     final lesson = ref.watch(lessonProvider(widget.lessonId));
 
     return lesson.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, _) => Scaffold(
-        appBar: AppBar(),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Text(
-              error is ApiException
-                  ? error.message
-                  : context.l10n.errorGeneric,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+      loading:
+          () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error:
+          (error, _) => Scaffold(
+            appBar: AppBar(),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Text(
+                  error is ApiException
+                      ? error.message
+                      : context.l10n.errorGeneric,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
       data: (data) {
         if (data.words.isEmpty) {
           return Scaffold(
@@ -70,12 +71,13 @@ class _SpeakLessonScreenState extends ConsumerState<SpeakLessonScreen> {
           word: data.words[index],
           languageCode: widget.languageCode,
           progressLabel: '${index + 1} / ${data.words.length}',
-          onNextWord: hasNext
-              ? () {
-                  ref.read(practiceControllerProvider.notifier).reset();
-                  setState(() => _index = index + 1);
-                }
-              : null,
+          onNextWord:
+              hasNext
+                  ? () {
+                    ref.read(practiceControllerProvider.notifier).reset();
+                    setState(() => _index = index + 1);
+                  }
+                  : null,
         );
       },
     );

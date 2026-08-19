@@ -45,10 +45,7 @@ class ScoreGauge extends StatelessWidget {
                     fontSize: size * 0.22,
                   ),
                 ),
-                Text(
-                  'Score',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text('Score', style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
@@ -75,17 +72,19 @@ class _GaugePainter extends CustomPainter {
       size.height - _strokeWidth,
     );
 
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..color = AppColors.border;
+    final track =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _strokeWidth
+          ..strokeCap = StrokeCap.round
+          ..color = AppColors.border;
 
-    final value = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..color = color;
+    final value =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _strokeWidth
+          ..strokeCap = StrokeCap.round
+          ..color = color;
 
     // Start at twelve o'clock and sweep clockwise.
     const start = -math.pi / 2;
