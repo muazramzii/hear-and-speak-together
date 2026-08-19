@@ -188,6 +188,16 @@ class Word(models.Model):
     meaning = models.TextField(_("meaning"), blank=True)
     example_sentence = models.TextField(_("example sentence"), blank=True)
     image_url = models.URLField(_("image URL"), blank=True)
+    emoji = models.CharField(
+        _("emoji"),
+        max_length=8,
+        blank=True,
+        help_text=_(
+            "Shown when no illustration is available. Without it a Listen "
+            "round is unplayable, because the word is hidden and every "
+            "option would look identical."
+        ),
+    )
     audio_url = models.URLField(
         _("audio URL"),
         blank=True,

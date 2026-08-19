@@ -1,6 +1,6 @@
 # Testing
 
-**303 tests** — 210 backend, 93 Flutter. All run offline, need no API key, and
+**330 tests** — 227 backend, 103 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -108,6 +108,16 @@ Guards against a stray rebuild triggering an assessment.
 test_weak_words_need_repeated_evidence
 ```
 One bad attempt is a bad recording, not a weakness.
+
+**Every word can be told apart in a quiz.**
+```
+test_every_seeded_word_has_a_visual
+test_options_in_one_round_are_visually_distinct
+four options render four different visuals
+```
+Listen hides the word and shows four pictures. Before the `emoji` field
+existed, every tile fell back to the same placeholder and the mode was
+unanswerable. These guard against that returning.
 
 **Another family's child is unreachable.**
 ```

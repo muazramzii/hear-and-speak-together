@@ -14,6 +14,7 @@ Word _word(int id, String text) => Word(
   meaning: '',
   exampleSentence: '',
   imageUrl: '',
+  emoji: '🐱',
   audioUrl: '',
 );
 

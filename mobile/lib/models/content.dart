@@ -139,6 +139,7 @@ class Word {
     required this.meaning,
     required this.exampleSentence,
     required this.imageUrl,
+    required this.emoji,
     required this.audioUrl,
   });
 
@@ -147,6 +148,12 @@ class Word {
   final String meaning;
   final String exampleSentence;
   final String imageUrl;
+
+  /// Stands in for a missing illustration. Without it a Listen round is
+  /// unplayable: the word is hidden, so every option would look identical.
+  final String emoji;
+
+  bool get hasVisual => imageUrl.isNotEmpty || emoji.isNotEmpty;
 
   /// Pre-recorded audio. Empty means fall back to text-to-speech.
   final String audioUrl;
@@ -158,6 +165,7 @@ class Word {
       meaning: json['meaning'] as String? ?? '',
       exampleSentence: json['example_sentence'] as String? ?? '',
       imageUrl: json['image_url'] as String? ?? '',
+      emoji: json['emoji'] as String? ?? '',
       audioUrl: json['audio_url'] as String? ?? '',
     );
   }

@@ -69,6 +69,39 @@ class SeedDataTests(TestCase):
         self.assertNotIn("cat", malay_words)
         self.assertNotIn("elephant", malay_words)
 
+    def test_every_seeded_word_has_a_visual(self):
+        """A Listen round hides the word and shows four pictures. With no
+        illustration and no emoji every tile renders the same placeholder and
+        the question cannot be answered - so this is a playability guard, not
+        a cosmetic one."""
+        seed()
+
+        without = list(
+            Word.objects.filter(emoji="", image_url="").values_list(
+                "text", flat=True
+            )
+        )
+
+        self.assertEqual(without, [], f"words with no visual: {without}")
+
+    def test_both_languages_share_a_concept_emoji(self):
+        seed()
+
+        english = Word.objects.get(text="cat")
+        malay = Word.objects.get(text="kucing")
+
+        self.assertEqual(english.emoji, malay.emoji)
+        self.assertTrue(english.emoji)
+
+    def test_options_in_one_round_are_visually_distinct(self):
+        seed()
+        word = Word.objects.get(text="kucing")
+
+        options = word.quiz_options(count=4)
+        emojis = [option.emoji for option in options]
+
+        self.assertEqual(len(set(emojis)), len(emojis), emojis)
+
     def test_seed_links_distractors(self):
         seed()
         word = Word.objects.filter(text="kucing").first()

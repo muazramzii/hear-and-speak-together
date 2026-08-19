@@ -139,8 +139,9 @@ tool and must not be used in production:
 gunicorn config.wsgi:application --bind 0.0.0.0:8000
 ```
 
-Add `gunicorn` to `requirements.txt` before deploying. Static files also need
-serving; `whitenoise` is the usual answer for a project this size.
+`gunicorn` and `whitenoise` are both in `requirements.txt`. WhiteNoise is wired
+into `MIDDLEWARE` and serves the admin's CSS and JS, with compressed,
+hash-named files in production — so the admin does not arrive unstyled.
 
 ---
 

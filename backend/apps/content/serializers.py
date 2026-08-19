@@ -32,17 +32,22 @@ class WordSerializer(serializers.ModelSerializer):
             "meaning",
             "example_sentence",
             "image_url",
+            "emoji",
             "audio_url",
             "order",
         ]
 
 
 class WordOptionSerializer(serializers.ModelSerializer):
-    """The minimum a Listen or Quiz tile needs to render."""
+    """The minimum a Listen or Quiz tile needs to render.
+
+    `emoji` is not optional in practice: a Listen round hides the word, so
+    without a distinguishing visual every tile would look the same.
+    """
 
     class Meta:
         model = Word
-        fields = ["id", "text", "image_url"]
+        fields = ["id", "text", "image_url", "emoji"]
 
 
 class QuizRoundSerializer(serializers.Serializer):
