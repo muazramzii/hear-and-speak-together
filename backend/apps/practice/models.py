@@ -6,6 +6,10 @@ from django.utils.translation import gettext_lazy as _
 from apps.content.models import Word
 from apps.profiles.models import Profile
 
+# Re-exported so Django's app registry discovers them; quiz results live in
+# their own module because they are a different kind of record entirely.
+from .quiz_models import QuizMode, QuizSession  # noqa: F401
+
 
 def attempt_audio_path(instance, filename):
     return f"attempts/{instance.profile_id}/{instance.word_id}/{filename}"

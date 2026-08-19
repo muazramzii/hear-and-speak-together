@@ -8,6 +8,7 @@ Everything that records learning progress attaches to a Profile, never to a
 User, so a sibling's practice never lands on the wrong child's record.
 """
 
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -16,6 +17,22 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.content.models import Language
+
+# Excludes characters a child or parent would misread aloud: 0/O, 1/I/L.
+_SHARE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+_SHARE_CODE_LENGTH = 8
+
+
+def generate_share_code():
+    """A code a teacher can be given to follow this learner.
+
+    Eight characters from a 31-symbol alphabet is about 10^12 combinations -
+    far too many to guess, which matters because the code grants a stranger
+    read access to a child's progress.
+    """
+    return "".join(
+        secrets.choice(_SHARE_CODE_ALPHABET) for _ in range(_SHARE_CODE_LENGTH)
+    )
 
 
 class Avatar(models.TextChoices):
@@ -61,6 +78,17 @@ class Profile(models.Model):
         _("last practised on"), null=True, blank=True
     )
 
+    share_code = models.CharField(
+        _("share code"),
+        max_length=16,
+        unique=True,
+        default=generate_share_code,
+        help_text=_(
+            "Given to a teacher so they can follow this learner. "
+            "Regenerating it revokes any code already handed out."
+        ),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -99,6 +127,15 @@ class Profile(models.Model):
         """Add points and re-derive the level. Caller saves."""
         self.points += max(0, amount)
         self.level = self.level_from_points
+
+    def regenerate_share_code(self):
+        """Issue a new code, invalidating the previous one.
+
+        Existing teacher links are unaffected - this stops *new* links being
+        made with a code that has been passed around.
+        """
+        self.share_code = generate_share_code()
+        return self.share_code
 
     def register_practice(self, on_date=None):
         """Update the streak for a practice session.

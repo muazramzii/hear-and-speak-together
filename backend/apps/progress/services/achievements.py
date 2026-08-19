@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 def _rules(profile, summary):
     """code -> whether the learner has earned it."""
     return {
-        AchievementCode.FIRST_PRACTICE: summary["practice_sessions"] >= 1,
+        # Any mode counts here. A child who has only played quizzes has still
+        # started, and earning nothing for it would discourage exactly the
+        # behaviour the rewards exist to encourage.
+        AchievementCode.FIRST_PRACTICE: summary["total_sessions"] >= 1,
         AchievementCode.FIRST_PERFECT_SCORE: analytics.has_perfect_score(profile),
         AchievementCode.TEN_WORDS: summary["words_learned"] >= 10,
         AchievementCode.TWENTY_FIVE_WORDS: summary["words_learned"] >= 25,

@@ -12,7 +12,7 @@ from django.db.models import Avg, Count, Max, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from apps.practice.models import PracticeAttempt
+from apps.practice.models import PracticeAttempt, QuizSession
 
 from ..models import LessonProgress
 
@@ -53,11 +53,22 @@ def overall_summary(profile):
     lessons = LessonProgress.objects.filter(profile=profile)
     completed_lessons = sum(1 for record in lessons if record.is_complete)
 
+    speaking_sessions = aggregate["sessions"] or 0
+    quiz_sessions = QuizSession.objects.filter(profile=profile).count()
+
     return {
+        # Pronunciation figures stay speaking-only: a tap on a picture says
+        # nothing about how a child sounds, and folding it in would corrupt
+        # the score averages.
         "average_score": (
             round(aggregate["average"]) if aggregate["average"] is not None else None
         ),
-        "practice_sessions": aggregate["sessions"] or 0,
+        "practice_sessions": speaking_sessions,
+        "quiz_sessions": quiz_sessions,
+        # "Did the child show up and practise" - true for any mode. Rewards
+        # are driven by this, so a child who only plays quizzes still earns
+        # something.
+        "total_sessions": speaking_sessions + quiz_sessions,
         "words_practised": aggregate["words"] or 0,
         "words_learned": _words_learned(profile),
         "lessons_started": lessons.count(),
