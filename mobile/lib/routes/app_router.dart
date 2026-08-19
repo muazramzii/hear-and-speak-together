@@ -8,9 +8,14 @@ import '../features/auth/splash_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/learn/learn_screen.dart';
+import '../features/lessons/lesson_list_screen.dart';
 import '../features/practice/speak_lesson_screen.dart';
 import '../features/profiles/profile_picker_screen.dart';
+import '../features/progress/progress_screen.dart';
 import '../features/quiz/choice_round_screen.dart';
+import '../features/rewards/rewards_screen.dart';
+import '../features/settings/settings_screen.dart';
+import '../features/shell/app_shell.dart';
 import '../providers/auth_provider.dart';
 import '../providers/choice_session_provider.dart';
 import '../repositories/profile_repository.dart';
@@ -24,6 +29,15 @@ String _languageCode(GoRouterState state) {
   return state.uri.queryParameters['lang'] ?? 'en';
 }
 
+/// Null means Speak, which has no `ChoiceMode` of its own.
+ChoiceMode? _choiceMode(GoRouterState state) {
+  return switch (state.pathParameters['mode']) {
+    'listen' => ChoiceMode.listen,
+    'quiz' => ChoiceMode.quiz,
+    _ => null,
+  };
+}
+
 /// Route paths and names, so navigation never uses raw strings.
 class AppRoutes {
   const AppRoutes._();
@@ -32,21 +46,35 @@ class AppRoutes {
   static const String login = '/login';
   static const String register = '/register';
   static const String profiles = '/profiles';
-  static const String home = '/home';
   static const String connection = '/connection';
 
-  // Lesson-scoped mode screens, pushed from the home mode grid.
-  static const String learn = '/learn/:lessonId';
-  static const String listen = '/listen/:lessonId';
-  static const String speak = '/speak/:lessonId';
-  static const String quiz = '/quiz/:lessonId';
+  // Bottom-navigation branches.
+  static const String home = '/home';
+  static const String progress = '/progress';
+  static const String rewards = '/rewards';
+  static const String settings = '/settings';
+
+  // Lesson pickers, pushed from the home mode grid.
+  static const String learnLessons = 'learn-lessons';
+  static const String modeLessons = 'lessons/:mode';
+
+  // Lesson-scoped mode screens.
+  static const String learn = 'learn/:lessonId';
+  static const String listen = 'listen/:lessonId';
+  static const String speak = 'speak/:lessonId';
+  static const String quiz = 'quiz/:lessonId';
 
   static const String splashName = 'splash';
   static const String loginName = 'login';
   static const String registerName = 'register';
   static const String profilesName = 'profiles';
-  static const String homeName = 'home';
   static const String connectionName = 'connection';
+  static const String homeName = 'home';
+  static const String progressName = 'progress';
+  static const String rewardsName = 'rewards';
+  static const String settingsName = 'settings';
+  static const String learnLessonsName = 'learn-lessons';
+  static const String modeLessonsName = 'mode-lessons';
   static const String learnName = 'learn';
   static const String listenName = 'listen';
   static const String speakName = 'speak';
@@ -105,44 +133,100 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.profilesName,
         builder: (context, state) => const ProfilePickerScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        name: AppRoutes.homeName,
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.learn,
-        name: AppRoutes.learnName,
-        builder: (context, state) => LearnScreen(
-          lessonId: _lessonId(state),
-          languageCode: _languageCode(state),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.listen,
-        name: AppRoutes.listenName,
-        builder: (context, state) => ChoiceRoundScreen(
-          lessonId: _lessonId(state),
-          mode: ChoiceMode.listen,
-          languageCode: _languageCode(state),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.speak,
-        name: AppRoutes.speakName,
-        builder: (context, state) => SpeakLessonScreen(
-          lessonId: _lessonId(state),
-          languageCode: _languageCode(state),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.quiz,
-        name: AppRoutes.quizName,
-        builder: (context, state) => ChoiceRoundScreen(
-          lessonId: _lessonId(state),
-          mode: ChoiceMode.quiz,
-          languageCode: _languageCode(state),
-        ),
+      // The signed-in shell. Each branch keeps its own stack, so leaving a
+      // lesson for the Progress tab and coming back returns to the lesson.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                name: AppRoutes.homeName,
+                builder: (context, state) => const HomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.learnLessons,
+                    name: AppRoutes.learnLessonsName,
+                    builder: (context, state) => LearnLessonListScreen(
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.modeLessons,
+                    name: AppRoutes.modeLessonsName,
+                    builder: (context, state) => LessonListScreen(
+                      mode: _choiceMode(state),
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.learn,
+                    name: AppRoutes.learnName,
+                    builder: (context, state) => LearnScreen(
+                      lessonId: _lessonId(state),
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.listen,
+                    name: AppRoutes.listenName,
+                    builder: (context, state) => ChoiceRoundScreen(
+                      lessonId: _lessonId(state),
+                      mode: ChoiceMode.listen,
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.speak,
+                    name: AppRoutes.speakName,
+                    builder: (context, state) => SpeakLessonScreen(
+                      lessonId: _lessonId(state),
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.quiz,
+                    name: AppRoutes.quizName,
+                    builder: (context, state) => ChoiceRoundScreen(
+                      lessonId: _lessonId(state),
+                      mode: ChoiceMode.quiz,
+                      languageCode: _languageCode(state),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.progress,
+                name: AppRoutes.progressName,
+                builder: (context, state) => const ProgressScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.rewards,
+                name: AppRoutes.rewardsName,
+                builder: (context, state) => const RewardsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                name: AppRoutes.settingsName,
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         // A developer aid, not part of the child-facing flow.
