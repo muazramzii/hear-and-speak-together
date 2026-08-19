@@ -121,6 +121,45 @@ python manage.py check
 
 ---
 
+## Adding illustrations
+
+Words fall back to an emoji when no illustration is set. To add real artwork
+without 62 admin edits, work through a CSV:
+
+```bash
+python manage.py import_word_images --template words.csv
+```
+
+That writes one row per word — `language`, `category`, `word`, `emoji`,
+`image_url` — already filled in with what is there now. Put your URLs in the
+`image_url` column, then preview:
+
+```bash
+python manage.py import_word_images words.csv --dry-run
+```
+
+```bash
+python manage.py import_word_images words.csv
+```
+
+Behaviour worth knowing:
+
+- **Blank cells are left alone**, not cleared. A partly filled sheet only
+  updates what it fills in, so re-importing a stale template is a no-op.
+- **Unmatched or invalid rows are reported, never silently skipped.** A row
+  quietly ignored would mean an illustration you believe is live but which
+  never appears.
+- **An ambiguous word is refused, not guessed.** If a word exists in both
+  languages, add a `language` column rather than let the command attach the
+  picture to the wrong learner's word.
+- The file is read as `utf-8-sig`, so a sheet saved from Excel imports
+  correctly instead of mangling the first column and every emoji.
+
+Once an `image_url` is set it takes precedence over the emoji automatically —
+no client change needed.
+
+---
+
 ## Demo data
 
 To walk through the app without practising a dozen words by hand first:

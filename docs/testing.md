@@ -1,6 +1,6 @@
 # Testing
 
-**330 tests** — 227 backend, 103 Flutter. All run offline, need no API key, and
+**346 tests** — 243 backend, 103 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -42,7 +42,7 @@ the very bug the capability layer exists to prevent.
 
 ## What is covered
 
-### Backend (210)
+### Backend (243)
 
 | Area | Examples |
 | --- | --- |
@@ -56,10 +56,11 @@ the very bug the capability layer exists to prevent.
 | Achievements | Award rules, no double-awarding, bonus points |
 | Supervisors | Access filtering, share-code linking, unlinking |
 
-### Flutter (93)
+### Flutter (103)
 
 Auth controller and login screen, API error translation, content and progress
-models, practice state machine, quiz session controller, and localization.
+models, practice state machine, quiz session controller, word visuals, and
+localization.
 
 ---
 
