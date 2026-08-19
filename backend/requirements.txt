@@ -20,3 +20,6 @@ Pillow>=10.4
 # ---- Speech (Azure AI Speech Pronunciation Assessment) ----
 # Only loaded when SPEECH_PROVIDER=azure; tests use the mock service.
 azure-cognitiveservices-speech>=1.40,<2.0
+
+# ---- Optional LLM feedback (Gemini / OpenAI over plain HTTP) ----
+requests>=2.32,<3.0

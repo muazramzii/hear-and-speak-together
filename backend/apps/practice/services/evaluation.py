@@ -12,14 +12,18 @@ from django.db import transaction
 from apps.practice.models import PracticeAttempt
 
 from . import feedback as feedback_engine
+from .ai.base import FeedbackContext
 from .base import AssessmentError, NoSpeechDetected
 
 logger = logging.getLogger(__name__)
 
 
 class PracticeEvaluationService:
-    def __init__(self, assessment_service):
+    def __init__(self, assessment_service, ai_service=None):
         self._assessor = assessment_service
+        # Optional by design. None means deterministic feedback only, which is
+        # the default and costs nothing.
+        self._ai = ai_service
 
     def evaluate(self, *, profile, word, audio_file):
         """Assess a recording, persist the attempt, and update the learner.
@@ -45,7 +49,18 @@ class PracticeEvaluationService:
             attempt = self._record_no_speech(profile, word, language)
             return attempt, None
 
-        attempt = self._record(profile, word, language, result, audio_file)
+        # Deterministic feedback is always computed first, so an AI provider
+        # that is slow, down or misconfigured simply leaves it in place.
+        # Deliberately outside the write transaction below: a network call must
+        # never hold a database lock open.
+        feedback_text = feedback_engine.build_feedback(result)
+        ai_text = self._ai_feedback(result)
+        if ai_text:
+            feedback_text = ai_text
+
+        attempt = self._record(
+            profile, word, language, result, audio_file, feedback_text
+        )
         return attempt, result
 
     # -- internals --------------------------------------------------------
@@ -61,8 +76,41 @@ class PracticeEvaluationService:
                 retryable=False,
             )
 
+    def _ai_feedback(self, result):
+        """Ask the LLM to rephrase the deterministic message.
+
+        Returns None on every failure path, so the caller keeps the
+        deterministic sentence. The LLM never sees or influences the score -
+        it only receives the numbers Azure already produced.
+        """
+        if self._ai is None:
+            return None
+
+        score = result.display_score
+        if score is None:
+            return None  # nothing was heard; there is nothing to encourage
+
+        try:
+            return self._ai.generate_feedback(
+                FeedbackContext(
+                    target_word=result.reference_text,
+                    language_code=result.language_code,
+                    locale=result.locale,
+                    recognized_text=result.recognized_text,
+                    score=score,
+                    accuracy_score=result.accuracy_score,
+                    fluency_score=result.fluency_score,
+                    error_type=result.error_type,
+                )
+            )
+        except Exception:
+            # A provider is not allowed to fail an attempt, so even an
+            # unexpected exception degrades to the deterministic message.
+            logger.exception("AI feedback raised; using deterministic feedback")
+            return None
+
     @transaction.atomic
-    def _record(self, profile, word, language, result, audio_file):
+    def _record(self, profile, word, language, result, audio_file, feedback_text):
         score = result.display_score
         points = feedback_engine.points_for_score(score)
 
@@ -80,7 +128,7 @@ class PracticeEvaluationService:
             # Stays None for locales without prosody support.
             prosody_score=result.prosody_score,
             error_type=result.error_type or "",
-            feedback=feedback_engine.build_feedback(result),
+            feedback=feedback_text,
             points_awarded=points,
         )
 
