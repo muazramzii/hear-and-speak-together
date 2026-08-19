@@ -1,0 +1,211 @@
+"""Progress, achievements, recommendations and the supervisor dashboard."""
+
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.accounts.permissions import IsParentOrTeacher
+from apps.profiles.models import Profile
+
+from .models import StudentLink
+from .services import achievements as achievement_service
+from .services import analytics
+
+
+def _accessible_profiles(user):
+    """Profiles this user may look at.
+
+    Two routes in: profiles they own (their own children), and profiles a
+    teacher has been linked to. Anything else is invisible, so a supervisor
+    cannot browse other families by guessing ids.
+    """
+    linked_ids = StudentLink.objects.filter(supervisor=user).values_list(
+        "profile_id", flat=True
+    )
+    return Profile.objects.filter(
+        Q(owner=user) | Q(pk__in=linked_ids)
+    ).select_related("practice_language")
+
+
+def _get_profile_or_404(user, profile_id):
+    return get_object_or_404(_accessible_profiles(user), pk=profile_id)
+
+
+def _resolve_profile(request):
+    """The profile a learner-facing endpoint is about.
+
+    `?profile=` selects one explicitly; otherwise the account's first profile
+    is used, which is the common single-child case.
+    """
+    profile_id = request.query_params.get("profile")
+    if profile_id:
+        return _get_profile_or_404(request.user, profile_id)
+
+    profile = _accessible_profiles(request.user).order_by("created_at").first()
+    if profile is None:
+        return None
+    return profile
+
+
+class ProgressView(APIView):
+    """GET /api/progress/ - the learner's own progress screen."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = _resolve_profile(request)
+        if profile is None:
+            return Response({"detail": "No profile found."}, status=404)
+
+        return Response(
+            {
+                "profile": {"id": profile.id, "name": profile.name},
+                "summary": analytics.overall_summary(profile),
+                "lessons": analytics.lesson_progress_list(profile),
+                "categories": analytics.category_performance(profile),
+                "weak_words": analytics.weak_words(profile),
+                "recent_attempts": analytics.recent_attempts(profile),
+                "trend": analytics.improvement_trend(profile),
+            }
+        )
+
+
+class LessonProgressView(APIView):
+    """GET /api/progress/{lesson_id}/"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, lesson_id):
+        profile = _resolve_profile(request)
+        if profile is None:
+            return Response({"detail": "No profile found."}, status=404)
+
+        records = {
+            item["lesson_id"]: item
+            for item in analytics.lesson_progress_list(profile)
+        }
+        record = records.get(int(lesson_id))
+
+        if record is None:
+            # Not an error - the child simply has not started this lesson.
+            return Response(
+                {
+                    "lesson_id": int(lesson_id),
+                    "completed_words": 0,
+                    "total_words": 0,
+                    "completion_percentage": 0,
+                    "average_score": None,
+                    "attempts": 0,
+                    "started": False,
+                }
+            )
+
+        return Response({**record, "started": True})
+
+
+class DashboardView(APIView):
+    """GET /api/dashboard/ - the home summary."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = _resolve_profile(request)
+        if profile is None:
+            return Response({"detail": "No profile found."}, status=404)
+
+        return Response(
+            {
+                "profile": {
+                    "id": profile.id,
+                    "name": profile.name,
+                    "language_code": profile.practice_language.code,
+                },
+                "summary": analytics.overall_summary(profile),
+                "recent_attempts": analytics.recent_attempts(profile, limit=3),
+                "recommendations": analytics.recommendations(profile),
+            }
+        )
+
+
+class AchievementsView(APIView):
+    """GET /api/achievements/ - the full catalogue, earned flags included."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = _resolve_profile(request)
+        if profile is None:
+            return Response({"detail": "No profile found."}, status=404)
+
+        return Response(
+            achievement_service.earned_list(
+                profile, language_code=profile.practice_language.code
+            )
+        )
+
+
+class RecommendationsView(APIView):
+    """GET /api/recommendations/ - what to practise next."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = _resolve_profile(request)
+        if profile is None:
+            return Response({"detail": "No profile found."}, status=404)
+
+        return Response(analytics.recommendations(profile))
+
+
+class StudentListView(APIView):
+    """GET /api/students/ - the learners a parent or teacher can monitor."""
+
+    permission_classes = [IsAuthenticated, IsParentOrTeacher]
+
+    def get(self, request):
+        profiles = _accessible_profiles(request.user)
+
+        return Response(
+            [
+                {
+                    "id": profile.id,
+                    "name": profile.name,
+                    "avatar": profile.avatar,
+                    "language_code": profile.practice_language.code,
+                    "level": profile.level_from_points,
+                    "points": profile.points,
+                    "streak_days": profile.streak_days,
+                    "summary": analytics.overall_summary(profile),
+                }
+                for profile in profiles
+            ]
+        )
+
+
+class StudentProgressView(APIView):
+    """GET /api/students/{id}/progress/ - one learner, in full."""
+
+    permission_classes = [IsAuthenticated, IsParentOrTeacher]
+
+    def get(self, request, profile_id):
+        profile = _get_profile_or_404(request.user, profile_id)
+
+        return Response(
+            {
+                "profile": {
+                    "id": profile.id,
+                    "name": profile.name,
+                    "avatar": profile.avatar,
+                    "language_code": profile.practice_language.code,
+                },
+                "summary": analytics.overall_summary(profile),
+                "lessons": analytics.lesson_progress_list(profile),
+                "categories": analytics.category_performance(profile),
+                "weak_words": analytics.weak_words(profile),
+                "recent_attempts": analytics.recent_attempts(profile, limit=10),
+                "trend": analytics.improvement_trend(profile),
+                "recommendations": analytics.recommendations(profile),
+            }
+        )

@@ -106,6 +106,21 @@ class EvaluatePracticeView(APIView):
                 "level": attempt.profile.level_from_points,
                 "streak_days": attempt.profile.streak_days,
             },
+            # Achievements unlocked by this attempt, so the app can celebrate
+            # immediately rather than waiting for the rewards screen.
+            "new_achievements": [
+                {
+                    "code": achievement.code,
+                    "name": achievement.localised_name(attempt.language_code),
+                    "description": achievement.localised_description(
+                        attempt.language_code
+                    ),
+                    "icon": achievement.icon,
+                }
+                for achievement in getattr(
+                    attempt, "newly_earned_achievements", []
+                )
+            ],
             "can_retry": True,
         }
 
