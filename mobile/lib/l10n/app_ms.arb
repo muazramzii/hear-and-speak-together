@@ -1,16 +1,13 @@
 {
   "@@locale": "ms",
-
   "appTitle": "Hear & Speak Together",
   "appTagline": "Belajar Mendengar, Menyebut & Berkomunikasi Bersama!",
-
   "actionStart": "Mula",
   "actionContinue": "Teruskan",
   "actionTryAgain": "Cuba Lagi",
   "actionCheckAgain": "Semak semula",
   "actionCancel": "Batal",
   "actionSave": "Simpan",
-
   "authSignIn": "Log Masuk",
   "authSignInBusy": "Sedang log masuk...",
   "authWelcomeBack": "Selamat datang kembali!",
@@ -37,29 +34,34 @@
   "authSignOutConfirmTitle": "Log keluar?",
   "authSignOutConfirmBody": "Anda perlu log masuk semula untuk berlatih.",
   "authBackToSignIn": "Kembali ke log masuk",
-
   "validationEmailRequired": "Sila masukkan e-mel anda.",
   "validationEmailInvalid": "Sila masukkan alamat e-mel yang sah.",
   "validationPasswordRequired": "Sila masukkan kata laluan anda.",
   "validationPasswordShort": "Gunakan sekurang-kurangnya 8 aksara.",
   "validationPasswordMismatch": "Kata laluan tidak sepadan.",
   "validationNameRequired": "Sila masukkan nama.",
-
   "profileChooseTitle": "Pilih Profil",
   "profileChooseSubtitle": "Pilih profil untuk mula belajar",
   "profileAddNew": "Tambah Profil Baru",
   "profileLevel": "Tahap {level}",
   "@profileLevel": {
-    "placeholders": { "level": { "type": "int" } }
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
   },
   "profileNameLabel": "Nama profil",
   "profileAvatarLabel": "Pilih watak",
   "profileEmpty": "Belum ada profil. Tambah satu untuk mula belajar.",
   "profileCreateTitle": "Profil baharu",
-
   "homeGreeting": "Hai, {name}!",
   "@homeGreeting": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "homeSubtitle": "Jom teruskan pembelajaran hari ini!",
   "modeLearn": "Learn",
@@ -70,17 +72,14 @@
   "modeSpeakSubtitle": "Sebut & Dapatkan Maklum Balas",
   "modeQuiz": "Quiz",
   "modeQuizSubtitle": "Uji Pengetahuan",
-
   "navHome": "Utama",
   "navProgress": "Progress",
   "navRewards": "Ganjaran",
   "navSettings": "Tetapan",
-
   "settingsInterfaceLanguage": "Bahasa aplikasi",
   "settingsInterfaceLanguageHelp": "Menukar butang dan label dalam aplikasi.",
   "settingsPracticeLanguage": "Bahasa latihan",
   "settingsPracticeLanguageHelp": "Menukar perkataan yang anda belajar dan sebut.",
-
   "statusLoading": "Sedang memuatkan...",
   "statusCheckingConnection": "Menyemak sambungan...",
   "statusCheckingConnectionDetail": "Menghubungi pelayan Hear & Speak.",
@@ -88,11 +87,154 @@
   "statusBackendConnectedDetail": "API dan pangkalan data kedua-duanya berfungsi.",
   "statusBackendFailed": "Sambungan Pelayan Gagal",
   "statusDatabaseUnreachable": "API berfungsi tetapi tidak dapat menghubungi pangkalan data.",
-
   "errorGeneric": "Ada masalah berlaku. Sila cuba lagi.",
   "errorNetwork": "Tidak dapat menghubungi pelayan. Sila semak sambungan internet anda.",
   "errorTimeout": "Pelayan mengambil masa terlalu lama. Sila cuba lagi.",
   "errorSignedOut": "Anda belum log masuk. Sila log masuk dan cuba lagi.",
   "errorBadCredentials": "E-mel atau kata laluan tidak betul. Sila cuba lagi.",
-  "errorSessionExpired": "Sesi anda telah tamat. Sila log masuk semula."
+  "errorSessionExpired": "Sesi anda telah tamat. Sila log masuk semula.",
+  "learnTitle": "Learn",
+  "listenTitle": "Listen",
+  "speakTitle": "Speak (AI)",
+  "quizTitle": "Quiz",
+  "learnListen": "Dengar",
+  "learnListenSlowly": "Dengar perlahan",
+  "learnPrevious": "Perkataan sebelum",
+  "learnNext": "Perkataan seterusnya",
+  "learnNoWords": "Pelajaran ini belum mempunyai perkataan.",
+  "choicePromptListen": "Dengar bunyi dan pilih gambar",
+  "choicePromptQuiz": "Pilih gambar yang betul",
+  "choicePlayWord": "Mainkan perkataan",
+  "choiceQuestionOf": "Soalan {current} / {total}",
+  "@choiceQuestionOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "choiceCorrect": "Betul!",
+  "choiceWrong": "Belum tepat - teruskan!",
+  "choiceNext": "Seterusnya",
+  "choiceFinish": "Selesai",
+  "choicePlayAgain": "Main Lagi",
+  "choiceWellDone": "Syabas!",
+  "choiceScoreLine": "Anda betul {correct} daripada {total}.",
+  "@choiceScoreLine": {
+    "placeholders": {
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "choiceNotEnoughWords": "Pelajaran ini belum mempunyai cukup perkataan untuk kuiz.",
+  "choiceCorrectAnswer": "{word}, jawapan betul",
+  "@choiceCorrectAnswer": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "choiceWrongAnswer": "{word}, jawapan salah",
+  "@choiceWrongAnswer": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceReady": "Sedia",
+  "practiceReadyDetail": "Tekan mikrofon dan sebut perkataan itu.",
+  "practiceListening": "Sedang mendengar...",
+  "practiceListeningDetail": "Sebut perkataan, kemudian tekan untuk berhenti.",
+  "practiceProcessing": "Menyemak sebutan anda...",
+  "practiceProcessingDetail": "Ia mengambil sedikit masa.",
+  "practiceFailed": "Ada masalah berlaku",
+  "practiceFailedDetail": "Lihat mesej di bawah.",
+  "practiceResult": "Keputusan",
+  "practiceTapToStart": "Tekan untuk mula sebut",
+  "practiceTapToStop": "Tekan untuk berhenti",
+  "practiceStartRecording": "Mula merakam",
+  "practiceStopRecording": "Berhenti merakam",
+  "practiceSlowly": "Perlahan",
+  "practiceYouSaid": "Anda sebut: {text}",
+  "@practiceYouSaid": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceNextWord": "Perkataan Seterusnya",
+  "practiceViewDetails": "Lihat Butiran",
+  "practiceHideDetails": "Sembunyi Butiran",
+  "practiceScoredBy": "Dinilai oleh Azure AI Speech untuk {locale}.",
+  "@practiceScoredBy": {
+    "placeholders": {
+      "locale": {
+        "type": "String"
+      }
+    }
+  },
+  "practiceChooseProfileFirst": "Pilih profil sebelum berlatih.",
+  "practiceOpenSettings": "Buka Tetapan",
+  "practiceScoreLabel": "Skor",
+  "metricAccuracy": "Ketepatan",
+  "metricFluency": "Kelancaran",
+  "metricCompleteness": "Kesempurnaan",
+  "metricPronunciation": "Sebutan",
+  "metricProsody": "Intonasi",
+  "errorMicDenied": "Kebenaran mikrofon diperlukan untuk berlatih bertutur.",
+  "errorTooShort": "Terlalu pendek. Tahan butang sambil menyebut perkataan.",
+  "errorMicUnavailable": "Kami tidak dapat menggunakan mikrofon. Sila cuba lagi.",
+  "errorNoLessons": "Tiada pelajaran untuk bahasa ini buat masa ini.",
+  "homeKeepGoing": "Teruskan usaha yang hebat!",
+  "homeReadyToStart": "Sedia untuk bermula?",
+  "homeStreakDays": "Streak {days} hari",
+  "@homeStreakDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeStartStreak": "Berlatih hari ini untuk mula streak.",
+  "homeSwitchProfile": "Tukar profil",
+  "lessonsTitle": "Pelajaran",
+  "lessonsWordCount": "{count} perkataan",
+  "@lessonsWordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lessonsChoose": "Pilih pelajaran",
+  "progressTitle": "Kemajuan",
+  "progressAverageScore": "Skor Purata",
+  "progressWordsLearned": "Perkataan Dipelajari",
+  "progressLessonsStarted": "Pelajaran Dimulakan",
+  "progressSessions": "Sesi Latihan",
+  "progressWeakWords": "Perkataan untuk dilatih semula",
+  "progressNoData": "Berlatih satu perkataan untuk mula membina kemajuan anda.",
+  "progressAttemptsCount": "{count} percubaan",
+  "@progressAttemptsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rewardsTitle": "Ganjaran",
+  "rewardsEarned": "Diperoleh",
+  "rewardsLocked": "Belum diperoleh",
+  "rewardsNone": "Belum ada ganjaran. Teruskan berlatih!",
+  "rewardsCongratulations": "Tahniah!"
 }

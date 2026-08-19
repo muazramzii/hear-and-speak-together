@@ -108,7 +108,7 @@ void main() {
       await pumpEventQueue();
 
       expect(controller.state.stage, ChoiceStage.error);
-      expect(controller.state.errorMessage, contains('not have enough words'));
+      expect(controller.state.errorCode, ChoiceError.notEnoughWords);
     });
 
     test('a failed lesson fetch surfaces the message', () async {

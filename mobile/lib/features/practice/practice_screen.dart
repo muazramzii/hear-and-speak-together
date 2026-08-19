@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../core/audio/audio_recorder.dart';
 import '../../core/audio/word_speaker.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../models/practice_result.dart';
 import '../../providers/practice_provider.dart';
@@ -40,7 +42,7 @@ class PracticeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Speak (AI)'),
+        title: Text(context.l10n.speakTitle),
         actions: [
           if (progressLabel != null)
             Padding(
@@ -114,7 +116,7 @@ class _PromptView extends ConsumerWidget {
                         .read(wordSpeakerProvider)
                         .speak(word.text, languageCode: languageCode),
               icon: const Icon(Icons.volume_up_rounded),
-              label: const Text('Listen'),
+              label: Text(context.l10n.learnListen),
             ),
             const SizedBox(width: AppSpacing.md),
             OutlinedButton.icon(
@@ -128,7 +130,7 @@ class _PromptView extends ConsumerWidget {
                           slow: true,
                         ),
               icon: const Icon(Icons.slow_motion_video_rounded),
-              label: const Text('Slowly'),
+              label: Text(context.l10n.practiceSlowly),
             ),
           ],
         ),
@@ -137,9 +139,13 @@ class _PromptView extends ConsumerWidget {
         _StageIndicator(stage: state.stage),
         const SizedBox(height: AppSpacing.lg),
 
-        if (state.errorMessage != null) ...[
+        if (state.errorMessage != null || state.recordingFailure != null) ...[
           _ErrorPanel(
-            message: state.errorMessage!,
+            // A device-side failure arrives as an enum and is translated
+            // here; a server-side message arrives already worded.
+            message:
+                state.errorMessage ??
+                _recordingMessage(context, state.recordingFailure!),
             permissionDenied: state.permissionDenied,
             onRetry: controller.reset,
           ),
@@ -160,7 +166,7 @@ class _PromptView extends ConsumerWidget {
         if (profileId == null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Choose a profile before practising.',
+            context.l10n.practiceChooseProfileFirst,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -168,6 +174,15 @@ class _PromptView extends ConsumerWidget {
       ],
     );
   }
+}
+
+String _recordingMessage(BuildContext context, RecordingFailure failure) {
+  final l10n = context.l10n;
+  return switch (failure) {
+    RecordingFailure.permissionDenied => l10n.errorMicDenied,
+    RecordingFailure.tooShort => l10n.errorTooShort,
+    RecordingFailure.unavailable => l10n.errorMicUnavailable,
+  };
 }
 
 class _WordCard extends StatelessWidget {
@@ -233,28 +248,29 @@ class _StageIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final (label, detail, color) = switch (stage) {
       PracticeStage.ready => (
-        'Ready',
-        'Tap the microphone and say the word.',
+        l10n.practiceReady,
+        l10n.practiceReadyDetail,
         AppColors.textSecondary,
       ),
       PracticeStage.listening => (
-        'Listening...',
-        'Say the word, then tap to stop.',
+        l10n.practiceListening,
+        l10n.practiceListeningDetail,
         AppColors.primary,
       ),
       PracticeStage.processing => (
-        'Checking your pronunciation...',
-        'This takes a moment.',
+        l10n.practiceProcessing,
+        l10n.practiceProcessingDetail,
         AppColors.blue,
       ),
       PracticeStage.error => (
-        'Something went wrong',
-        'See the message below.',
+        l10n.practiceFailed,
+        l10n.practiceFailedDetail,
         AppColors.danger,
       ),
-      PracticeStage.result => ('Result', '', AppColors.success),
+      PracticeStage.result => (l10n.practiceResult, '', AppColors.success),
     };
 
     return Column(
@@ -308,7 +324,9 @@ class _MicrophoneButton extends StatelessWidget {
       children: [
         Semantics(
           button: true,
-          label: listening ? 'Stop recording' : 'Start recording',
+          label: listening
+              ? context.l10n.practiceStopRecording
+              : context.l10n.practiceStartRecording,
           child: GestureDetector(
             onTap: processing ? null : (listening ? onStop : onStart),
             child: AnimatedContainer(
@@ -331,7 +349,9 @@ class _MicrophoneButton extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          listening ? 'Tap to stop' : 'Tap to start speaking',
+          listening
+              ? context.l10n.practiceTapToStop
+              : context.l10n.practiceTapToStart,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
@@ -383,10 +403,13 @@ class _ErrorPanel extends StatelessWidget {
             // in system settings.
             FilledButton(
               onPressed: openAppSettings,
-              child: const Text('Open Settings'),
+              child: Text(context.l10n.practiceOpenSettings),
             )
           else
-            FilledButton(onPressed: onRetry, child: const Text('Try Again')),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(context.l10n.actionTryAgain),
+            ),
         ],
       ),
     );
@@ -437,7 +460,7 @@ class _ResultViewState extends State<_ResultView> {
 
         if (result.heardSpeech && result.recognizedText.isNotEmpty) ...[
           Text(
-            'You said: "${result.recognizedText}"',
+            context.l10n.practiceYouSaid('"${result.recognizedText}"'),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -463,7 +486,11 @@ class _ResultViewState extends State<_ResultView> {
           const SizedBox(height: AppSpacing.md),
           TextButton(
             onPressed: () => setState(() => _showDetails = !_showDetails),
-            child: Text(_showDetails ? 'Hide Details' : 'View Details'),
+            child: Text(
+              _showDetails
+                  ? context.l10n.practiceHideDetails
+                  : context.l10n.practiceViewDetails,
+            ),
           ),
           if (_showDetails) _DetailScores(result: result),
         ],
@@ -472,17 +499,17 @@ class _ResultViewState extends State<_ResultView> {
         if (widget.onNextWord != null) ...[
           FilledButton(
             onPressed: widget.onNextWord,
-            child: const Text('Next Word'),
+            child: Text(context.l10n.practiceNextWord),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton(
             onPressed: widget.onTryAgain,
-            child: const Text('Try Again'),
+            child: Text(context.l10n.actionTryAgain),
           ),
         ] else
           FilledButton(
             onPressed: widget.onTryAgain,
-            child: const Text('Try Again'),
+            child: Text(context.l10n.actionTryAgain),
           ),
       ],
     );
@@ -537,13 +564,17 @@ class _DetailScores extends StatelessWidget {
 
   final PracticeResult result;
 
-  static const _labels = {
-    'accuracy': 'Accuracy',
-    'fluency': 'Fluency',
-    'completeness': 'Completeness',
-    'pronunciation': 'Pronunciation',
-    'prosody': 'Intonation',
-  };
+  static String _label(BuildContext context, String metric) {
+    final l10n = context.l10n;
+    return switch (metric) {
+      'accuracy' => l10n.metricAccuracy,
+      'fluency' => l10n.metricFluency,
+      'completeness' => l10n.metricCompleteness,
+      'pronunciation' => l10n.metricPronunciation,
+      'prosody' => l10n.metricProsody,
+      _ => metric,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +592,7 @@ class _DetailScores extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        _labels[entry.key] ?? entry.key,
+                        _label(context, entry.key),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -574,7 +605,7 @@ class _DetailScores extends StatelessWidget {
               ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Scored by Azure AI Speech for ${result.locale}.',
+              context.l10n.practiceScoredBy(result.locale),
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],

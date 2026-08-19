@@ -19,6 +19,10 @@ enum ChoiceMode {
 
 enum ChoiceStage { loading, question, answered, finished, error }
 
+/// Failures that originate in this layer, where no translation is available.
+/// The widget turns these into the interface language.
+enum ChoiceError { notEnoughWords }
+
 class ChoiceSessionState {
   const ChoiceSessionState({
     this.stage = ChoiceStage.loading,
@@ -28,6 +32,7 @@ class ChoiceSessionState {
     this.selectedOptionId,
     this.correctCount = 0,
     this.errorMessage,
+    this.errorCode,
   });
 
   final ChoiceStage stage;
@@ -38,7 +43,12 @@ class ChoiceSessionState {
   /// Null until the child taps an option.
   final int? selectedOptionId;
   final int correctCount;
+
+  /// Server-side message, already worded.
   final String? errorMessage;
+
+  /// Client-side failure, translated by the widget.
+  final ChoiceError? errorCode;
 
   bool get hasAnswered => selectedOptionId != null;
 
@@ -59,6 +69,7 @@ class ChoiceSessionState {
     int? selectedOptionId,
     int? correctCount,
     String? errorMessage,
+    ChoiceError? errorCode,
     bool clearSelection = false,
     bool clearError = false,
   }) {
@@ -72,6 +83,7 @@ class ChoiceSessionState {
           : (selectedOptionId ?? this.selectedOptionId),
       correctCount: correctCount ?? this.correctCount,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      errorCode: clearError ? null : (errorCode ?? this.errorCode),
     );
   }
 }
@@ -105,9 +117,11 @@ class ChoiceSessionController extends StateNotifier<ChoiceSessionState> {
 
       if (words.length < 2) {
         // A round needs at least one wrong option to be a real question.
+        // Reported as a code, not a sentence: this layer has no
+        // `BuildContext` and so cannot look up a translation.
         state = const ChoiceSessionState(
           stage: ChoiceStage.error,
-          errorMessage: 'This lesson does not have enough words for a quiz yet.',
+          errorCode: ChoiceError.notEnoughWords,
         );
         return;
       }

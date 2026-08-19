@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../providers/practice_provider.dart';
 import '../../repositories/content_repository.dart';
 import 'practice_screen.dart';
@@ -44,7 +45,7 @@ class _SpeakLessonScreenState extends ConsumerState<SpeakLessonScreen> {
             child: Text(
               error is ApiException
                   ? error.message
-                  : 'Something went wrong. Please try again.',
+                  : context.l10n.errorGeneric,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -55,7 +56,7 @@ class _SpeakLessonScreenState extends ConsumerState<SpeakLessonScreen> {
         if (data.words.isEmpty) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('This lesson has no words yet.')),
+            body: Center(child: Text(context.l10n.learnNoWords)),
           );
         }
 

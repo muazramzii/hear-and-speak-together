@@ -57,6 +57,8 @@ void main() {
     test('no Malay value is left as the English text', () {
       // A handful of strings are intentionally identical - the app name and
       // the mode names are kept in English in the design.
+      // The design keeps the four mode names in English in both languages,
+      // so these are deliberately identical rather than untranslated.
       const intentionallyShared = {
         'appTitle',
         'modeLearn',
@@ -64,6 +66,10 @@ void main() {
         'modeSpeak',
         'modeQuiz',
         'navProgress',
+        'learnTitle',
+        'listenTitle',
+        'speakTitle',
+        'quizTitle',
       };
 
       final untranslated = english.keys

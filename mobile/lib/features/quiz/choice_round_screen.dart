@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/word_speaker.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../providers/choice_session_provider.dart';
 
@@ -32,14 +33,20 @@ class ChoiceRoundScreen extends ConsumerWidget {
     final controller = ref.read(choiceSessionProvider(args).notifier);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isListen ? 'Listen' : 'Quiz')),
+      appBar: AppBar(title: Text(_isListen ? context.l10n.listenTitle : context.l10n.quizTitle)),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: switch (state.stage) {
               ChoiceStage.error => _ErrorState(
-                message: state.errorMessage ?? 'Something went wrong.',
+                message:
+                    state.errorMessage ??
+                    switch (state.errorCode) {
+                      ChoiceError.notEnoughWords =>
+                        context.l10n.choiceNotEnoughWords,
+                      null => context.l10n.errorGeneric,
+                    },
                 onRetry: controller.start,
               ),
               ChoiceStage.finished => _FinishedState(
@@ -96,8 +103,8 @@ class _RoundView extends ConsumerWidget {
 
           Text(
             isListen
-                ? 'Listen and choose the picture'
-                : 'Choose the correct picture',
+                ? context.l10n.choicePromptListen
+                : context.l10n.choicePromptQuiz,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium,
           ),
@@ -149,7 +156,11 @@ class _RoundView extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FilledButton(
               onPressed: onNext,
-              child: Text(state.isLastRound ? 'Finish' : 'Next'),
+              child: Text(
+              state.isLastRound
+                  ? context.l10n.choiceFinish
+                  : context.l10n.choiceNext,
+            ),
             ),
           ],
         ],
@@ -175,7 +186,10 @@ class _ProgressHeader extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'Question ${state.roundNumber} / ${state.totalRounds}',
+          context.l10n.choiceQuestionOf(
+            state.roundNumber,
+            state.totalRounds,
+          ),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -200,7 +214,7 @@ class _SpeakerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Play the word',
+      label: context.l10n.choicePlayWord,
       child: Material(
         color: AppColors.primary,
         shape: const CircleBorder(),
@@ -258,8 +272,8 @@ class _OptionTile extends StatelessWidget {
       // Correctness is announced, not just coloured, so the outcome is
       // available to a child using a screen reader.
       label: switch (state) {
-        _OptionTone.correct => '${option.text}, correct answer',
-        _OptionTone.wrong => '${option.text}, wrong answer',
+        _OptionTone.correct => context.l10n.choiceCorrectAnswer(option.text),
+        _OptionTone.wrong => context.l10n.choiceWrongAnswer(option.text),
         _OptionTone.neutral => option.text,
       },
       child: Material(
@@ -348,7 +362,7 @@ class _AnswerBanner extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            correct ? 'Correct!' : 'Not quite - keep going!',
+            correct ? context.l10n.choiceCorrect : context.l10n.choiceWrong,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           if (correct) ...[
@@ -384,12 +398,12 @@ class _FinishedState extends StatelessWidget {
           const Text('🏆', style: TextStyle(fontSize: 72)),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Well done!',
+            context.l10n.choiceWellDone,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'You got $correct out of $total right.',
+            context.l10n.choiceScoreLine(correct, total),
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -404,7 +418,7 @@ class _FinishedState extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
           FilledButton(
             onPressed: onPlayAgain,
-            child: const Text('Play Again'),
+            child: Text(context.l10n.choicePlayAgain),
           ),
         ],
       ),
@@ -437,7 +451,10 @@ class _ErrorState extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(onPressed: onRetry, child: const Text('Try Again')),
+          FilledButton(
+            onPressed: onRetry,
+            child: Text(context.l10n.actionTryAgain),
+          ),
         ],
       ),
     );
