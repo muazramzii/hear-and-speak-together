@@ -121,6 +121,48 @@ python manage.py check
 
 ---
 
+## Demo data
+
+To walk through the app without practising a dozen words by hand first:
+
+```bash
+python manage.py seed_data
+```
+
+```bash
+python manage.py seed_achievements
+```
+
+```bash
+python manage.py seed_demo
+```
+
+That creates `demo@hearspeak.test` / `HearSpeak!2026` — a **parent** account, so
+the supervisor view is reachable too — with two learners:
+
+| Learner | Language | History |
+| --- | --- | --- |
+| Ali | Bahasa Melayu | 20 attempts, average 75, 294 points |
+| Sofia | English | 27 attempts, average 79, 343 points |
+
+Both have a 5-day streak, earned badges, and two deliberately weak words each
+so the weak-word analytics have something real to flag.
+
+It is idempotent: re-running rebuilds the same history rather than piling more
+on top, so the figures stay predictable for a walkthrough or screenshots.
+
+Two things it does deliberately:
+
+- **Refuses to run with `DEBUG=False`.** The password is written in the source,
+  so the command will not touch a production database without `--force`.
+- **Never gives a Malay attempt a prosody score.** Azure does not assess
+  prosody for `ms-MY`, and demo data must not imply a measurement the real
+  system cannot make. A test asserts this.
+
+Override the account with `--email` and `--password`.
+
+---
+
 ## Cost control while developing
 
 - Keep `ENABLE_AI_FEEDBACK=False` unless you are specifically testing the
