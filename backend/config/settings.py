@@ -214,6 +214,38 @@ ENABLE_AI_FEEDBACK = env_bool("ENABLE_AI_FEEDBACK", default=False)
 STORE_AUDIO = env_bool("STORE_AUDIO", default=False)
 
 # ---------------------------------------------------------------------------
+# Production hardening
+#
+# Applied only when DEBUG is off, so local development over plain HTTP still
+# works. Every value is overridable, because the right setting depends on how
+# the app is fronted (a reverse proxy terminating TLS needs different handling
+# from a direct deployment).
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=True)
+
+    # Tells Django a request arrived over HTTPS when TLS is terminated by a
+    # proxy. Without it, SECURE_SSL_REDIRECT sees plain HTTP and loops.
+    # Only safe when a proxy actually sets this header - a direct deployment
+    # should leave it off, since a client could otherwise forge it.
+    if env_bool("BEHIND_TLS_PROXY", default=True):
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Deliberately one hour, not a year. HSTS is hard to undo - browsers
+    # remember it - so a short window is the safe default for a first
+    # deployment. Raise it once HTTPS is proven to work on the real domain.
+    SECURE_HSTS_SECONDS = int(env_str("SECURE_HSTS_SECONDS", default="3600"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+        "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False
+    )
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=False)
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+# ---------------------------------------------------------------------------
 # Logging
 # Technical detail goes to the server log; never secrets, tokens or audio.
 # ---------------------------------------------------------------------------
