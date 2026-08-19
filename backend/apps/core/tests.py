@@ -37,6 +37,45 @@ class HealthEndpointTests(TestCase):
         self.assertEqual(body["database"], "unavailable")
 
 
+class ApiRootTests(TestCase):
+    """GET / must be a helpful signpost rather than a raw 404."""
+
+    def test_root_is_public(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_root_lists_the_entry_points(self):
+        body = self.client.get("/").json()
+
+        self.assertEqual(body["name"], "Hear & Speak Together API")
+        self.assertIn("version", body)
+        for key in (
+            "health",
+            "authentication",
+            "languages",
+            "categories",
+            "lessons",
+            "profiles",
+            "admin",
+        ):
+            self.assertIn(key, body["endpoints"])
+
+    def test_advertised_urls_are_absolute(self):
+        endpoints = self.client.get("/").json()["endpoints"]
+
+        for url in endpoints.values():
+            self.assertTrue(url.startswith("http"), url)
+
+    def test_the_advertised_health_url_actually_works(self):
+        """A signpost pointing at a broken door is worse than no signpost."""
+        health_url = self.client.get("/").json()["endpoints"]["health"]
+
+        response = self.client.get(health_url)
+
+        self.assertEqual(response.status_code, 200)
+
+
 class ConfigurationTests(TestCase):
     """Guard rails that keep secrets out of the repository."""
 

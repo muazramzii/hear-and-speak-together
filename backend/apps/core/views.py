@@ -10,6 +10,45 @@ from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
+# Bumped at the end of each development phase. Kept in one place so the root
+# endpoint never drifts out of date silently.
+API_VERSION = "0.3.0"
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def api_root(request):
+    """
+    GET /
+
+    A signpost for anyone who opens the base URL - a supervisor, a new
+    developer, or the deployed host's health checker. Lists only the entry
+    points, not every route, so it does not need updating for each new
+    endpoint.
+    """
+    return Response(
+        {
+            "name": "Hear & Speak Together API",
+            "description": (
+                "Bilingual speech-learning backend for English and "
+                "Bahasa Melayu."
+            ),
+            "version": API_VERSION,
+            "endpoints": {
+                name: request.build_absolute_uri(path)
+                for name, path in [
+                    ("health", "/api/health/"),
+                    ("authentication", "/api/auth/"),
+                    ("languages", "/api/languages/"),
+                    ("categories", "/api/categories/"),
+                    ("lessons", "/api/lessons/"),
+                    ("profiles", "/api/profiles/"),
+                    ("admin", "/admin/"),
+                ]
+            },
+        }
+    )
+
 
 def _database_is_reachable():
     """Return True when a trivial query against PostgreSQL succeeds."""
