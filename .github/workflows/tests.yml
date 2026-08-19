@@ -89,7 +89,12 @@ jobs:
         run: flutter pub get
 
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        # Generated localizations are excluded: their layout is decided by
+        # `flutter gen-l10n`, not by us, and they are git-ignored - so a
+        # developer running `dart format` locally never sees them either.
+        run: |
+          find lib test -name '*.dart' -not -path 'lib/l10n/generated/*' -print0 \
+            | xargs -0 dart format --output=none --set-exit-if-changed
 
       - name: Analyze
         run: flutter analyze
