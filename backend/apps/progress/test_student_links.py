@@ -64,6 +64,85 @@ class ShareCodeTests(TestCase):
         self.assertNotEqual(profile.share_code, original)
 
 
+class RegenerateCodeAPITests(APITestCase):
+    def setUp(self):
+        self.language = Language.objects.create(
+            code="en", name="English", locale="en-US"
+        )
+        self.owner = User.objects.create_user(
+            email="owner@example.com", name="Owner", password="TeaCup!2026"
+        )
+        self.stranger = User.objects.create_user(
+            email="stranger@example.com", name="Stranger", password="TeaCup!2026"
+        )
+        self.profile = Profile.objects.create(
+            owner=self.owner, name="Ali", practice_language=self.language
+        )
+
+    def authenticate(self, user):
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": user.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+    def test_requires_authentication(self):
+        response = self.client.post(
+            f"/api/profiles/{self.profile.id}/regenerate-code/"
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_owner_can_rotate_the_code(self):
+        original = self.profile.share_code
+        self.authenticate(self.owner)
+
+        response = self.client.post(
+            f"/api/profiles/{self.profile.id}/regenerate-code/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(response.json()["share_code"], original)
+
+        self.profile.refresh_from_db()
+        self.assertNotEqual(self.profile.share_code, original)
+
+    def test_a_stranger_cannot_rotate_someone_elses_code(self):
+        original = self.profile.share_code
+        self.authenticate(self.stranger)
+
+        response = self.client.post(
+            f"/api/profiles/{self.profile.id}/regenerate-code/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.share_code, original)
+
+    def test_existing_links_survive_a_rotation(self):
+        """Rotating stops *new* links being made; revoking an existing
+        teacher's access is a separate, deliberate action."""
+        teacher = User.objects.create_user(
+            email="t@example.com",
+            name="T",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+        )
+        StudentLink.objects.create(supervisor=teacher, profile=self.profile)
+
+        self.authenticate(self.owner)
+        self.client.post(f"/api/profiles/{self.profile.id}/regenerate-code/")
+
+        self.assertTrue(
+            StudentLink.objects.filter(
+                supervisor=teacher, profile=self.profile
+            ).exists()
+        )
+
+
 class LinkStudentAPITests(APITestCase):
     def setUp(self):
         self.language = Language.objects.create(

@@ -1,4 +1,5 @@
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -48,3 +49,17 @@ class ProfileViewSet(viewsets.ModelViewSet):
         write.save()
         instance.refresh_from_db()
         return Response(ProfileSerializer(instance).data)
+
+    @action(detail=True, methods=["post"], url_path="regenerate-code")
+    def regenerate_code(self, request, pk=None):
+        """POST /api/profiles/{id}/regenerate-code/
+
+        Issues a new share code, so a code that has been passed around can no
+        longer be used to make new links. Teachers already linked keep their
+        access - revoking that is a separate, deliberate action.
+        """
+        profile = self.get_object()
+        profile.regenerate_share_code()
+        profile.save(update_fields=["share_code", "updated_at"])
+
+        return Response(ProfileSerializer(profile).data)
