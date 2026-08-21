@@ -95,24 +95,72 @@ bug this layer exists to prevent.
 
 ---
 
+## When Azure is not available
+
+Azure requires a subscription, and that is not always obtainable — a student
+signup can be rejected, and the standard free tier needs a card. So the project
+supports a second real assessor, **SpeechAce**, which offers a free trial tier.
+
+**But no single free provider covers both languages.** SpeechAce supports:
+
+`en-us` · `en-gb` · `fr-fr` · `fr-ca` · `es-es` · `es-mx`
+
+**Malay is not on that list**, and neither ELSA nor any other hosted
+pronunciation-scoring API covers it. Azure's `ms-MY` support is genuinely
+unusual, which is exactly why it was chosen first.
+
+That is why the provider is selected **per language**, not globally:
+
+| Language | Provider | Why |
+| --- | --- | --- |
+| `en-US` | SpeechAce (or Azure) | Real acoustic scoring, free trial tier |
+| `ms-MY` | Azure, or the mock | SpeechAce cannot score Malay at all |
+
+Set it on each `Language` row in the admin via `assessment_provider`.
+`default` defers to the `SPEECH_PROVIDER` setting.
+
+**Sending Malay audio to SpeechAce is refused, not substituted.** Scoring
+Malay against an English acoustic model would return a confident, entirely
+meaningless number — worse than no score, because it looks real. A test
+asserts no HTTP request is even made for an unsupported dialect.
+
+SpeechAce also returns fewer metrics than Azure: no prosody, and its fluency
+and completeness describe connected speech rather than single words. All three
+are stored as `null` rather than filled with a number that means something
+different — the same rule the capability layer applies to Azure's locales.
+
+### Setting it up
+
+1. Get a trial key from [speechace.com](https://www.speechace.com/api-plans/)
+   — no card for the trial, but the free tier is a small number of
+   assessments per day, so keep `SPEECH_PROVIDER=mock` for development.
+2. Put it in `backend/.env` as `SPEECHACE_API_KEY`.
+3. In the admin, set the English `Language` row's `assessment_provider` to
+   `speechace`, and leave Malay on `mock` (or `azure` if you obtain a key).
+
+---
+
 ## The service boundary
 
 ```
-Azure Speech ──> AzurePronunciationAssessmentService ──┐
-                                                        ├──> PronunciationAssessmentResult ──> business logic ──> PostgreSQL
-Mock (tests) ──> MockPronunciationAssessmentService ──┘
+Azure Speech  ──>  AzurePronunciationAssessmentService  ──┐
+SpeechAce     ──>  SpeechAceAssessmentService           ──┼──>  PronunciationAssessmentResult  ──>  business logic  ──>  PostgreSQL
+Mock (tests)  ──>  MockPronunciationAssessmentService   ──┘
 ```
 
-`apps/practice/services/azure_service.py` is the **only** module that imports
-the Azure SDK, and it does so lazily inside the method so the native library
-never loads during tests. Everything above the boundary works with
+`azure_service.py` is the **only** module that imports the Azure SDK, and it
+does so lazily inside the method so the native library never loads during
+tests. `speechace_service.py` is the only one that knows SpeechAce's request
+shape. Everything above the boundary works with
 `PronunciationAssessmentResult`, our own normalised shape.
 
-This is what makes an Azure API change a one-adapter problem rather than a
-whole-application problem, and what makes the mock a genuine drop-in rather
-than a special case threaded through the code.
+Adding SpeechAce was the test of this design, and it held: a whole second
+provider went in without a single change to the models, the evaluation
+service, the feedback engine, the API response, or the app. The abstraction
+paid for itself the first time it was needed.
 
-Selection is by `SPEECH_PROVIDER` (`azure` | `mock`), **defaulting to mock**.
+Selection: a `Language` row's `assessment_provider` wins if set; otherwise the
+`SPEECH_PROVIDER` setting decides. Both **default to the mock**.
 
 ---
 

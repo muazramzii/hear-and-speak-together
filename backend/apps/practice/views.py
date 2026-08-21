@@ -39,7 +39,9 @@ class EvaluatePracticeView(APIView):
         language = word.lesson.category.language
 
         service = PracticeEvaluationService(
-            get_pronunciation_service(),
+            # Per language: SpeechAce cannot score ms-MY, so Malay routes to a
+            # different provider than English.
+            get_pronunciation_service(language),
             # None unless ENABLE_AI_FEEDBACK is on, so the default path makes
             # no LLM call at all.
             ai_service=get_ai_service(),

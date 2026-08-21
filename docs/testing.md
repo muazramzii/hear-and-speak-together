@@ -1,6 +1,6 @@
 # Testing
 
-**358 tests** — 255 backend, 103 Flutter. All run offline, need no API key, and
+**379 tests** — 276 backend, 103 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -28,7 +28,7 @@ a mock implementation, selected by configuration:
 
 | Service | Real | Mock | Selected by |
 | --- | --- | --- | --- |
-| Pronunciation | `AzurePronunciationAssessmentService` | `MockPronunciationAssessmentService` | `SPEECH_PROVIDER` |
+| Pronunciation | `Azure...Service` / `SpeechAceAssessmentService` | `MockPronunciationAssessmentService` | `Language.assessment_provider`, else `SPEECH_PROVIDER` |
 | AI feedback | `GeminiAIService` / `OpenAIService` | `MockAIService` | `AI_PROVIDER` |
 
 Both default to the mock, so a fresh checkout runs the full suite immediately.
@@ -42,7 +42,7 @@ the very bug the capability layer exists to prevent.
 
 ## What is covered
 
-### Backend (255)
+### Backend (276)
 
 | Area | Examples |
 | --- | --- |
