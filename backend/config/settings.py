@@ -223,6 +223,11 @@ AZURE_SPEECH_REGION = env_str("AZURE_SPEECH_REGION", default="")
 # spends money or needs a key.
 SPEECH_PROVIDER = env_str("SPEECH_PROVIDER", default="mock")
 
+# SpeechAce is an alternative acoustic assessor with a free trial tier. It
+# covers en/fr/es only - not Malay - so it is selected per language via
+# Language.assessment_provider rather than globally.
+SPEECHACE_API_KEY = env_str("SPEECHACE_API_KEY", default="")
+
 AI_PROVIDER = env_str("AI_PROVIDER", default="mock")
 AI_API_KEY = env_str("AI_API_KEY", default="")
 # Blank falls back to the provider's default model (see ai/factory.py).

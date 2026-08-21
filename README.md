@@ -25,7 +25,7 @@ as `demo@hearspeak.test` / `HearSpeak!2026`.
 | API | Django + Django REST Framework |
 | Database | PostgreSQL |
 | Authentication | JWT (`djangorestframework-simplejwt`), `flutter_secure_storage` |
-| Pronunciation assessment | Azure AI Speech, server-side only |
+| Pronunciation assessment | Azure AI Speech or SpeechAce, per language, server-side only |
 | Feedback | Deterministic rules, with an optional LLM layer |
 | Analytics | Rule-based, in Django — no ML, no LLM |
 
@@ -201,7 +201,7 @@ and a language model never does.
 
 ## Tests
 
-**358 tests** — 255 backend, 103 Flutter. All run offline and call no paid API.
+**379 tests** — 276 backend, 103 Flutter. All run offline and call no paid API.
 
 ```bash
 cd backend && .venv\Scripts\python.exe manage.py test

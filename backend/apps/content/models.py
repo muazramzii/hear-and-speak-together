@@ -34,6 +34,23 @@ class Language(models.Model):
     )
     is_active = models.BooleanField(_("active"), default=True)
 
+    assessment_provider = models.CharField(
+        _("assessment provider"),
+        max_length=16,
+        choices=[
+            ("default", _("Use SPEECH_PROVIDER setting")),
+            ("azure", _("Azure AI Speech")),
+            ("speechace", _("SpeechAce")),
+            ("mock", _("Mock (no real assessment)")),
+        ],
+        default="default",
+        help_text=_(
+            "Which engine scores this language. Set per language because "
+            "coverage differs: SpeechAce has no Malay, so ms-MY can only use "
+            "Azure or the mock."
+        ),
+    )
+
     # ---- Azure AI Speech capabilities -------------------------------------
     # Verified against Microsoft Learn documentation; see
     # `capabilities_verified_on`. Do not edit these from guesswork - check the
