@@ -1,39 +1,3 @@
-/// What Azure AI Speech can actually measure for a given locale.
-///
-/// These come from the backend rather than being hardcoded, because Azure's
-/// feature set is not identical across locales - prosody, for instance, is
-/// documented as en-US only. The UI must render only the metrics listed here
-/// so a score that was never measured is never displayed.
-class LanguageCapabilities {
-  const LanguageCapabilities({
-    required this.pronunciationAssessment,
-    required this.prosody,
-    required this.phonemeNames,
-    required this.syllableScores,
-    required this.availableMetrics,
-  });
-
-  final bool pronunciationAssessment;
-  final bool prosody;
-  final bool phonemeNames;
-  final bool syllableScores;
-  final List<String> availableMetrics;
-
-  bool supports(String metric) => availableMetrics.contains(metric);
-
-  factory LanguageCapabilities.fromJson(Map<String, dynamic> json) {
-    return LanguageCapabilities(
-      pronunciationAssessment:
-          json['pronunciation_assessment'] as bool? ?? false,
-      prosody: json['prosody'] as bool? ?? false,
-      phonemeNames: json['phoneme_names'] as bool? ?? false,
-      syllableScores: json['syllable_scores'] as bool? ?? false,
-      availableMetrics:
-          (json['available_metrics'] as List?)?.cast<String>() ?? const [],
-    );
-  }
-}
-
 class LanguageInfo {
   const LanguageInfo({
     required this.id,
@@ -41,7 +5,6 @@ class LanguageInfo {
     required this.name,
     required this.locale,
     required this.ttsVoice,
-    required this.capabilities,
   });
 
   final int id;
@@ -49,7 +12,6 @@ class LanguageInfo {
   final String name;
   final String locale;
   final String ttsVoice;
-  final LanguageCapabilities capabilities;
 
   factory LanguageInfo.fromJson(Map<String, dynamic> json) {
     return LanguageInfo(
@@ -58,9 +20,6 @@ class LanguageInfo {
       name: json['name'] as String? ?? '',
       locale: json['locale'] as String? ?? '',
       ttsVoice: json['tts_voice'] as String? ?? '',
-      capabilities: LanguageCapabilities.fromJson(
-        (json['capabilities'] as Map?)?.cast<String, dynamic>() ?? const {},
-      ),
     );
   }
 }

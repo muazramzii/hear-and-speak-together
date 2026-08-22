@@ -195,16 +195,10 @@ class Command(BaseCommand):
             locale=language.locale,
             reference_text=word.text,
             recognized_text=word.text if score >= 70 else "",
-            accuracy_score=score,
-            fluency_score=min(100, score + 4),
+            similarity_score=score,
+            confidence_score=min(100, score + 4),
             completeness_score=100,
             pronunciation_score=score,
-            # Null wherever the locale does not support prosody, exactly as
-            # Azure behaves for ms-MY. Demo data must not imply a measurement
-            # the real system cannot make.
-            prosody_score=(
-                min(100, score + 2) if language.supports_prosody else None
-            ),
             points_awarded=points,
         )
 

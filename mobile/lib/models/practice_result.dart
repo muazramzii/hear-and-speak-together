@@ -1,26 +1,23 @@
-/// A single feedback observation shown under the score.
+/// A structured pronunciation error, e.g. a dropped final sound.
 ///
-/// `tone` exists so the meaning survives without colour: a checklist that
-/// distinguishes praise from suggestion only by green versus amber is
-/// unusable for a colour-blind child.
-class PracticeTip {
-  const PracticeTip({
-    required this.metric,
-    required this.tone,
-    required this.text,
+/// Produced by the backend's phoneme-alignment step - only ever describes
+/// what the alignment actually found, never a guessed or invented mistake.
+class PracticeErrorDetail {
+  const PracticeErrorDetail({
+    required this.type,
+    required this.expected,
+    required this.detected,
   });
 
-  final String metric;
-  final String tone; // 'positive' | 'suggestion'
-  final String text;
+  final String type; // e.g. 'missing_ending', 'wrong_consonant'
+  final String? expected;
+  final String? detected;
 
-  bool get isPositive => tone == 'positive';
-
-  factory PracticeTip.fromJson(Map<String, dynamic> json) {
-    return PracticeTip(
-      metric: json['metric'] as String? ?? '',
-      tone: json['tone'] as String? ?? 'suggestion',
-      text: json['text'] as String? ?? '',
+  factory PracticeErrorDetail.fromJson(Map<String, dynamic> json) {
+    return PracticeErrorDetail(
+      type: json['type'] as String? ?? '',
+      expected: json['expected'] as String?,
+      detected: json['detected'] as String?,
     );
   }
 }
@@ -51,6 +48,10 @@ class ProfileTotals {
 }
 
 /// The outcome of one speaking attempt.
+///
+/// Scored entirely on the server by a self-hosted speech recognition engine
+/// and a deterministic pronunciation-scoring algorithm - the app never talks
+/// to a speech provider directly and has no notion of which one is used.
 class PracticeResult {
   const PracticeResult({
     required this.attemptId,
@@ -60,11 +61,11 @@ class PracticeResult {
     required this.locale,
     required this.heardSpeech,
     required this.score,
-    required this.scores,
-    required this.availableMetrics,
-    required this.errorType,
+    required this.similarity,
+    required this.confidence,
+    required this.completeness,
+    required this.errors,
     required this.feedback,
-    required this.tips,
     required this.pointsAwarded,
     required this.profile,
     required this.canRetry,
@@ -83,60 +84,45 @@ class PracticeResult {
   /// The single headline number. Null when nothing was heard.
   final int? score;
 
-  /// Raw metric values. A null value means *not measured for this locale* and
-  /// must never be rendered as zero.
-  final Map<String, double?> scores;
+  /// Phonetic-feature similarity between the reference and spoken word, 0-100.
+  final double? similarity;
 
-  /// Which metrics this locale can measure at all. Anything absent here must
-  /// not be shown, even as "unavailable" - Azure does not assess prosody for
-  /// ms-MY, so an intonation row would be meaningless there.
-  final List<String> availableMetrics;
+  /// The recognition engine's own confidence in the transcription, 0-100.
+  final double? confidence;
 
-  final String? errorType;
+  /// How much of the reference word's sound content was present, 0-100.
+  final double? completeness;
+
+  final List<PracticeErrorDetail> errors;
   final String feedback;
-  final List<PracticeTip> tips;
   final int pointsAwarded;
   final ProfileTotals profile;
   final bool canRetry;
 
-  /// Metrics worth showing in the details panel: supported by the locale
-  /// *and* actually returned.
-  Map<String, double> get displayableScores {
-    final result = <String, double>{};
-    for (final metric in availableMetrics) {
-      final value = scores[metric];
-      if (value != null) result[metric] = value;
-    }
-    return result;
-  }
-
   bool get isStrong => (score ?? 0) >= 75;
 
   factory PracticeResult.fromJson(Map<String, dynamic> json) {
-    final rawScores = (json['scores'] as Map?)?.cast<String, dynamic>() ?? {};
-
     return PracticeResult(
       attemptId: json['attempt_id'] as int? ?? 0,
-      referenceText: json['reference_text'] as String? ?? '',
-      recognizedText: json['recognized_text'] as String? ?? '',
+      referenceText: json['reference'] as String? ?? '',
+      recognizedText: json['recognized'] as String? ?? '',
       languageCode: json['language'] as String? ?? 'en',
       locale: json['locale'] as String? ?? '',
       heardSpeech: json['heard_speech'] as bool? ?? false,
       score: (json['score'] as num?)?.round(),
-      scores: rawScores.map(
-        (key, value) => MapEntry(key, (value as num?)?.toDouble()),
-      ),
-      availableMetrics:
-          (json['available_metrics'] as List?)?.cast<String>() ?? const [],
-      errorType: json['error_type'] as String?,
-      feedback: json['feedback'] as String? ?? '',
-      tips:
-          (json['tips'] as List?)
+      similarity: (json['similarity'] as num?)?.toDouble(),
+      confidence: (json['confidence'] as num?)?.toDouble(),
+      completeness: (json['completeness'] as num?)?.toDouble(),
+      errors:
+          (json['errors'] as List?)
               ?.map(
-                (t) => PracticeTip.fromJson((t as Map).cast<String, dynamic>()),
+                (e) => PracticeErrorDetail.fromJson(
+                  (e as Map).cast<String, dynamic>(),
+                ),
               )
               .toList() ??
           const [],
+      feedback: json['feedback'] as String? ?? '',
       pointsAwarded: json['points_awarded'] as int? ?? 0,
       profile: ProfileTotals.fromJson(
         (json['profile'] as Map?)?.cast<String, dynamic>() ?? const {},

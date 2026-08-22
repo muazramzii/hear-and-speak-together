@@ -18,22 +18,26 @@ Final Year Project report.
                         │                    │                    │
                         v                    v                    v
                  ┌─────────────┐    ┌────────────────┐   ┌───────────────┐
-                 │ PostgreSQL  │    │ Azure AI       │   │ LLM provider  │
-                 │             │    │ Speech         │   │ (optional)    │
+                 │ PostgreSQL  │    │ Whisper        │   │ LLM provider  │
+                 │             │    │ (self-hosted,  │   │ (optional)    │
+                 │             │    │ in-process)    │   │               │
                  └─────────────┘    └────────────────┘   └───────────────┘
 ```
 
-The mobile app talks to exactly one system: the Django API. Every external
-service is reached server-side. This is a deliberate choice with three
-consequences:
+The mobile app talks to exactly one system: the Django API. Speech recognition
+runs **inside** the Django process itself, not as a separate external service
+— there is no paid speech API anywhere in this architecture. This is a
+deliberate choice with three consequences:
 
-1. **Credentials never leave the server.** An API key compiled into a mobile
-   binary can be extracted from the APK; a key held in Django cannot.
-2. **Cost is controllable.** Rate limits, caching and feature flags live in one
-   place rather than being scattered across app versions already installed on
-   devices.
+1. **No credential to leak, for recognition at all.** There is no speech API
+   key to compile into a mobile binary or extract from an APK, because there
+   is no speech API — Whisper's weights are loaded directly into the Django
+   process.
+2. **Cost is controllable.** There is no per-request billing for recognition
+   or scoring; the only optional paid dependency is the LLM feedback layer,
+   which is off by default and never required.
 3. **Providers can be swapped without shipping an app update.** Replacing the
-   feedback provider is a server-side change.
+   feedback provider, or the recognition model size, is a server-side change.
 
 ---
 
@@ -53,35 +57,39 @@ relational: users have attempts, attempts belong to words, words belong to
 lessons, lessons belong to categories. Progress and analytics are aggregate
 queries over that structure, which is exactly what SQL is for.
 
-**Azure AI Speech** — see below.
+**Self-hosted Whisper plus a custom pronunciation engine** — see
+[pronunciation-engine.md](pronunciation-engine.md) for the full design; the
+short version follows.
 
 ---
 
-## Why Azure AI Speech rather than an LLM for scoring
+## Why recognition and scoring are separate stages, and why an LLM never scores
 
 This is the most important decision in the project, so it is worth stating
 precisely.
 
-Pronunciation assessment is an **acoustic** problem. It requires comparing the
-audio signal a child produced against the expected phonetic realisation of a
-reference word. Azure AI Speech Pronunciation Assessment is built for this: it
-returns accuracy, fluency, completeness and overall pronunciation scores
-derived from the audio itself.
+Recognition (Whisper) and scoring (the pronunciation engine) are two
+deliberately separate stages that never share a responsibility. Whisper only
+ever answers "what did the model think was said" — it is a transcription
+engine, nothing more. The pronunciation engine only ever answers "how well was
+it said," working entirely from the reference word, the recognised text, and
+Whisper's own confidence signal — never from raw audio.
 
-A large language model operates on **text**. Given a transcript, an LLM can
-only guess at pronunciation quality from spelling differences — which is not
-measurement, it is inference from an already-lossy representation. Two children
-whose speech differs audibly can produce the same transcript, and an LLM would
-be unable to distinguish them.
+A large language model operates on **text**. Given only a transcript, an LLM
+can only guess at pronunciation quality from spelling differences — which is
+not measurement, it is inference from an already-lossy representation. Two
+children whose speech differs audibly can produce the same transcript, and an
+LLM would be unable to distinguish them.
 
 Therefore:
 
-- The pronunciation score comes from Azure. Always.
-- The LLM, when enabled, only rewrites Azure's structured numbers into warm,
-  child-friendly sentences. It never produces or adjusts a score.
-- String-similarity measures (edit distance and the like) are **supplementary
-  text analysis** only — useful for spotting missing or inserted words, never
-  for scoring pronunciation.
+- The pronunciation score always comes from the deterministic engine, never
+  from a model call.
+- The LLM, when enabled, only rewrites the engine's structured numbers into
+  warm, child-friendly sentences. It never produces or adjusts a score.
+- Phonetic-feature distance (via `panphon`), not naive string similarity, is
+  what "similarity" measures — plain edit distance over text is never used as
+  the pronunciation score.
 
 If the LLM is unavailable, the app falls back to deterministic score-band
 feedback and continues working normally. The application must never depend on
@@ -91,25 +99,26 @@ the LLM being reachable.
 
 ## Service abstractions
 
-Two boundaries keep third-party services from leaking into the rest of the
+Two boundaries keep swappable pieces from leaking into the rest of the
 codebase:
 
 ```
-Azure Speech  ──>  AzurePronunciationAssessmentService  ──┐
-                                                          ├─> PronunciationAssessmentResult ──> business logic ──> PostgreSQL
-Mock (tests)  ──>  MockPronunciationAssessmentService  ──┘
+Whisper (real)  ──>  WhisperSpeechRecognitionService  ──┐
+                                                        ├─> RecognitionResult ──> PronunciationEngine ──> business logic ──> PostgreSQL
+Mock (tests)    ──>  MockSpeechRecognitionService     ──┘
 ```
 
 ```
 Gemini / OpenAI  ──>  AIService.generateFeedback()  ──>  feedback string
 ```
 
-Business logic depends on `PronunciationAssessmentResult`, an internal
-normalised structure — never on Azure's raw response shape. This means an
-Azure API change touches one adapter class rather than the whole application,
-and it makes the mock implementations used in testing trivially substitutable.
-
-*(Both abstractions are introduced in Phase 3 and Phase 5 respectively.)*
+Only recognition is swappable this way — the pronunciation engine downstream
+of it is deterministic and identical in every environment, so there is
+nothing to select for scoring. Business logic depends on `RecognitionResult`,
+an internal normalised structure, never on Whisper's raw segment objects.
+This means the recognition implementation can change without touching the
+engine, the API response, or the app, and it makes the mock trivially
+substitutable in tests.
 
 ---
 
@@ -125,16 +134,15 @@ machine translations of the English list. Runtime translation would produce
 words that are pedagogically wrong for a Malay learner and would give the
 speech assessor a reference text nobody actually says.
 
-**Locale capabilities are discovered, not assumed.** Azure's pronunciation
-assessment does not expose an identical feature set for every locale;
-phoneme-level detail and prosody scoring in particular are locale-dependent.
-The backend therefore owns a language configuration layer and reports each
-language's capabilities to the client. The Flutter app renders only the metrics
-the backend says are available.
-
-The application never fabricates a phoneme or prosody value for a locale that
-does not supply one. Where a score is unavailable it is stored as `null` and
-simply not displayed.
+**No metric is ever fabricated.** There is no prosody, intonation, or
+phoneme-identity score anywhere in this architecture, for either language —
+Whisper plus a text-level phonetic comparison has no acoustic signal to
+derive them from. Rather than fabricate one, or advertise it as unavailable
+per locale, the metric simply does not exist here: not a `null` placeholder
+for something that might one day be measured, just absent from the model, the
+API response, and the UI. Every attempt in both languages carries the same
+three metrics — similarity, confidence, completeness — because the engine
+measures the same three things regardless of language.
 
 ---
 
@@ -220,11 +228,20 @@ discourage the behaviour the rewards exist to encourage.
 | 1 | Django + DRF + PostgreSQL foundation, health endpoint, Flutter shell |
 | 2 | Custom email-keyed User, JWT authentication, role permissions |
 | 3 | Bilingual content models, learner profiles, localization scaffold |
-| 4 | Azure pronunciation assessment, the Speak flow, deterministic feedback |
+| 4 | Pronunciation assessment integration, the Speak flow, deterministic feedback |
 | 5 | Optional LLM feedback layer, Learn / Listen / Quiz modes |
 | 6 | Learning analytics, achievements, bottom navigation, lesson browser |
 | 7 | Supervisor dashboard, quiz persistence, teacher linking |
 | 8 | Share-code UI, production hardening, documentation |
+| 9 | `check_azure` diagnostic command and CI workflow *(superseded — see below)* |
+| 10 | Migration from Azure/SpeechAce to a self-hosted Whisper + custom pronunciation engine |
 
 Each phase ended with the full test suite green and a live end-to-end check
 against a running server.
+
+Phase 4's original implementation used Azure AI Speech, and Phase 9 later
+added a SpeechAce fallback for languages Azure could not cover on a free
+tier. Phase 10 replaced both entirely with the self-hosted architecture
+described in [pronunciation-engine.md](pronunciation-engine.md), after a
+student Azure subscription could not be obtained. No Azure or SpeechAce code,
+configuration, or dependency remains in the codebase.

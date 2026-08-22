@@ -3,10 +3,10 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 /// Speaks the target word aloud so the child hears it before trying.
 ///
-/// On-device TTS is used rather than Azure's, because this fires every time a
-/// child taps "listen" - often several times per word. Routing that through a
-/// paid API would multiply cost for no pedagogical gain, and it would stop
-/// working offline.
+/// On-device TTS is used rather than a cloud voice, because this fires every
+/// time a child taps "listen" - often several times per word. Routing that
+/// through a network call would add latency for no pedagogical gain, and it
+/// would stop working offline.
 class WordSpeaker {
   WordSpeaker(this._tts);
 

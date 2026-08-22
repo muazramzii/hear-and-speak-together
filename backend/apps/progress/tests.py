@@ -23,7 +23,7 @@ User = get_user_model()
 
 def build_world(word_count=4):
     language = Language.objects.create(
-        code="en", name="English", locale="en-US", supports_prosody=True
+        code="en", name="English", locale="en-US"
     )
     category = Category.objects.create(
         language=language, slug="animals", name="Animals", icon="🐾"
@@ -45,7 +45,7 @@ def attempt(profile, word, score, *, when=None):
         reference_text=word.text,
         recognized_text=word.text,
         pronunciation_score=score,
-        accuracy_score=score,
+        similarity_score=score,
     )
     if when is not None:
         PracticeAttempt.objects.filter(pk=record.pk).update(created_at=when)

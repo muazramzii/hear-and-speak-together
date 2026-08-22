@@ -4,7 +4,7 @@ Layer 2 of the feedback design. The LLM's only job is to rephrase an
 already-computed result into warmer, more specific encouragement for a child.
 
 It is explicitly **not** responsible for:
-  - producing or adjusting any score (that is Azure's, always)
+  - producing or adjusting any score (that is the pronunciation engine's, always)
   - deciding whether the attempt was good (the score band decides that)
   - being available (every failure falls back to deterministic feedback)
 
@@ -30,8 +30,8 @@ class FeedbackContext:
     locale: str
     recognized_text: str
     score: int
-    accuracy_score: float | None = None
-    fluency_score: float | None = None
+    similarity_score: float | None = None
+    confidence_score: float | None = None
     error_type: str | None = None
 
     @property
@@ -66,10 +66,10 @@ def build_prompt(context: FeedbackContext) -> str:
     if context.recognized_text:
         details.append(f"The child was heard saying: {context.recognized_text}")
     details.append(f"Overall pronunciation score: {context.score} out of 100")
-    if context.accuracy_score is not None:
-        details.append(f"Accuracy: {round(context.accuracy_score)}")
-    if context.fluency_score is not None:
-        details.append(f"Fluency: {round(context.fluency_score)}")
+    if context.similarity_score is not None:
+        details.append(f"Similarity to the target word: {round(context.similarity_score)}")
+    if context.confidence_score is not None:
+        details.append(f"Recognition confidence: {round(context.confidence_score)}")
     if context.error_type:
         details.append(f"Error type: {context.error_type}")
 

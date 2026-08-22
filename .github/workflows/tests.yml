@@ -57,6 +57,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Cache NLTK data
+        uses: actions/cache@v4
+        with:
+          path: ~/nltk_data
+          key: nltk-data-averaged_perceptron_tagger_eng-cmudict
+
+      - name: Download NLTK data for English G2P
+        # Not a paid API - just NLTK's own free corpus/model downloads,
+        # needed once so the pronunciation engine's English G2P (g2p_en)
+        # doesn't hit the network mid-test-run.
+        run: python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng'); nltk.download('cmudict')"
+
       - name: Check for model drift
         # Fails if a model was changed without a matching migration.
         run: python manage.py makemigrations --check --dry-run

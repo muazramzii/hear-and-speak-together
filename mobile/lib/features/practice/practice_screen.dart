@@ -422,8 +422,6 @@ class _ResultView extends StatefulWidget {
 }
 
 class _ResultViewState extends State<_ResultView> {
-  bool _showDetails = false;
-
   @override
   Widget build(BuildContext context) {
     final result = widget.result;
@@ -441,12 +439,10 @@ class _ResultViewState extends State<_ResultView> {
           Center(child: ScoreGauge(score: result.score ?? 0)),
         const SizedBox(height: AppSpacing.lg),
 
-        Text(
-          result.feedback,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: AppSpacing.md),
+        if (result.heardSpeech) ...[
+          _DetailScores(result: result),
+          const SizedBox(height: AppSpacing.md),
+        ],
 
         if (result.heardSpeech && result.recognizedText.isNotEmpty) ...[
           Text(
@@ -456,6 +452,13 @@ class _ResultViewState extends State<_ResultView> {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+
+        Text(
+          result.feedback,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.md),
 
         if (result.pointsAwarded > 0)
           Center(
@@ -468,22 +471,6 @@ class _ResultViewState extends State<_ResultView> {
               label: Text('+${result.pointsAwarded}'),
             ),
           ),
-        const SizedBox(height: AppSpacing.md),
-
-        for (final tip in result.tips) _TipRow(tip: tip),
-
-        if (result.displayableScores.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          TextButton(
-            onPressed: () => setState(() => _showDetails = !_showDetails),
-            child: Text(
-              _showDetails
-                  ? context.l10n.practiceHideDetails
-                  : context.l10n.practiceViewDetails,
-            ),
-          ),
-          if (_showDetails) _DetailScores(result: result),
-        ],
 
         const SizedBox(height: AppSpacing.lg),
         if (widget.onNextWord != null) ...[
@@ -506,98 +493,47 @@ class _ResultViewState extends State<_ResultView> {
   }
 }
 
-class _TipRow extends StatelessWidget {
-  const _TipRow({required this.tip});
-
-  final PracticeTip tip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: tip.isPositive ? AppColors.greenSoft : AppColors.amberSoft,
-          borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              tip.isPositive
-                  ? Icons.check_circle_rounded
-                  : Icons.lightbulb_outline_rounded,
-              color: tip.isPositive ? AppColors.success : AppColors.warning,
-              size: 20,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                tip.text,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The technical breakdown, behind "View Details".
-///
-/// It renders only metrics the backend says this locale can measure. Azure
-/// does not assess prosody for ms-MY, so no intonation row appears for a
-/// Malay word - showing one would be inventing a measurement.
+/// The similarity / confidence / completeness breakdown behind the headline
+/// score. Every attempt carries all three - there is no per-locale gating in
+/// this architecture, unlike the previous Azure-backed version.
 class _DetailScores extends StatelessWidget {
   const _DetailScores({required this.result});
 
   final PracticeResult result;
 
-  static String _label(BuildContext context, String metric) {
-    final l10n = context.l10n;
-    return switch (metric) {
-      'accuracy' => l10n.metricAccuracy,
-      'fluency' => l10n.metricFluency,
-      'completeness' => l10n.metricCompleteness,
-      'pronunciation' => l10n.metricPronunciation,
-      'prosody' => l10n.metricProsody,
-      _ => metric,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final scores = result.displayableScores;
+    final l10n = context.l10n;
+    final rows = <(String, double?)>[
+      (l10n.metricSimilarity, result.similarity),
+      (l10n.metricConfidence, result.confidence),
+      (l10n.metricCompleteness, result.completeness),
+    ];
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
-            for (final entry in scores.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _label(context, entry.key),
-                        style: Theme.of(context).textTheme.bodyMedium,
+            for (final (label, value) in rows)
+              if (value != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${entry.value.round()}%',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
+                      Text(
+                        '${value.round()}%',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              context.l10n.practiceScoredBy(result.locale),
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
           ],
         ),
       ),

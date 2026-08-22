@@ -22,9 +22,17 @@ Pillow>=10.4
 gunicorn>=23.0,<24.0
 whitenoise>=6.7,<7.0
 
-# ---- Speech (Azure AI Speech Pronunciation Assessment) ----
-# Only loaded when SPEECH_PROVIDER=azure; tests use the mock service.
-azure-cognitiveservices-speech>=1.40,<2.0
+# ---- Speech recognition (self-hosted Whisper, CTranslate2 reimplementation) ----
+# Only loaded when SPEECH_PROVIDER=whisper; tests use the mock service.
+faster-whisper>=1.0,<2.0
+
+# ---- Pronunciation scoring (local, deterministic, no network calls) ----
+# g2p_en: English grapheme-to-phoneme (CMU dict + trained model).
+# panphon: articulatory feature vectors for phonetic-distance scoring.
+# nltk: g2p_en's tokenizer/POS-tagger dependency (averaged_perceptron_tagger, cmudict).
+g2p_en>=2.1,<3.0
+panphon>=0.20,<1.0
+nltk>=3.9,<4.0
 
 # ---- Optional LLM feedback (Gemini / OpenAI over plain HTTP) ----
 requests>=2.32,<3.0

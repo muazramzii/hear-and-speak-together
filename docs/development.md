@@ -77,12 +77,26 @@ template — keep them in sync whenever a new setting is introduced.
 | `ALLOWED_HOSTS` | Phase 1 | Comma-separated. |
 | `DATABASE_URL` | Phase 1 | `postgres://user:pass@host:port/db`. Required. |
 | `CORS_ALLOWED_ORIGINS` | Phase 1 | Comma-separated. Web/tooling only. |
-| `AZURE_SPEECH_KEY` | Phase 3 | Server-side only, never in the app. |
-| `AZURE_SPEECH_REGION` | Phase 3 | e.g. `southeastasia`. |
+| `SPEECH_PROVIDER` | Phase 10 | `whisper` or `mock`. Default `mock`. |
+| `WHISPER_MODEL_SIZE` | Phase 10 | `base` by default; larger models trade a slower first download for accuracy. |
+| `WHISPER_DEVICE` | Phase 10 | `cpu` by default; `cuda` if a GPU is available. |
+| `WHISPER_COMPUTE_TYPE` | Phase 10 | `int8` by default. |
+| `PRONUNCIATION_WEIGHT_SIMILARITY` / `_CONFIDENCE` / `_COMPLETENESS` | Phase 10 | Score weights; must sum to 1.0. |
 | `AI_PROVIDER` | Phase 5 | `gemini`, `openai`, or `mock`. |
 | `AI_API_KEY` | Phase 5 | Optional feedback layer. |
 | `ENABLE_AI_FEEDBACK` | Phase 5 | Cost control. Default `False`. |
 | `STORE_AUDIO` | Phase 4 | Cost control. Default `False`. |
+
+See [pronunciation-engine.md](pronunciation-engine.md) for what each Whisper
+and scoring-weight setting actually does.
+
+English's grapheme-to-phoneme step (`g2p_en`) needs two NLTK resources on
+first use. Fetch them ahead of time so the first real practice attempt is not
+also the first download:
+
+```bash
+python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng'); nltk.download('cmudict')"
+```
 
 Generate a fresh secret key with:
 
@@ -102,10 +116,11 @@ python manage.py test
 flutter test
 ```
 
-Both suites are fully offline. Azure AI Speech and any LLM provider are
-reached only through service abstractions that are replaced with mock
-implementations under test, so running the suite never incurs an API charge
-and never requires a key. This is a hard rule, not a convenience.
+Both suites are fully offline. Whisper and any LLM provider are reached only
+through service abstractions that are replaced with mock implementations
+under test, so running the suite never loads a real speech model, never
+incurs an API charge, and never requires a key. This is a hard rule, not a
+convenience.
 
 ---
 
@@ -194,9 +209,9 @@ Two things it does deliberately:
 
 - **Refuses to run with `DEBUG=False`.** The password is written in the source,
   so the command will not touch a production database without `--force`.
-- **Never gives a Malay attempt a prosody score.** Azure does not assess
-  prosody for `ms-MY`, and demo data must not imply a measurement the real
-  system cannot make. A test asserts this.
+- **Gives every attempt the same score fields, regardless of language.**
+  There is no per-locale metric to withhold in this architecture — a test
+  asserts English and Malay demo attempts carry the same shape.
 
 Override the account with `--email` and `--password`.
 
@@ -205,8 +220,13 @@ Override the account with `--email` and `--password`.
 ## Cost control while developing
 
 - Keep `ENABLE_AI_FEEDBACK=False` unless you are specifically testing the
-  feedback layer.
+  feedback layer — it is the only piece of this pipeline with a per-call
+  cost.
 - Keep `STORE_AUDIO=False` so practice recordings are not persisted.
+- Keep `SPEECH_PROVIDER=mock` unless you are specifically testing real
+  recognition — the real Whisper model adds noticeable latency on CPU and,
+  on a cold cache, a slow first download (see
+  [pronunciation-engine.md](pronunciation-engine.md)).
 - Never trigger a speech assessment from a widget's `build()` method — it
-  runs on every rebuild and each call costs money.
+  runs on every rebuild.
 - Use the mock services for anything other than deliberate integration checks.

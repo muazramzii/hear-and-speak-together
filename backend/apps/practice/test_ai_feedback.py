@@ -21,8 +21,9 @@ from .services.ai.providers import (
     MockAIService,
     OpenAIService,
 )
+from .services import feedback as feedback_engine
 from .services.evaluation import PracticeEvaluationService
-from .services.mock_service import MockPronunciationAssessmentService
+from .services.recognition.mock_service import MockSpeechRecognitionService
 
 User = get_user_model()
 
@@ -34,9 +35,9 @@ def context(score=82, language="en"):
         locale="en-US" if language == "en" else "ms-MY",
         recognized_text="elepant",
         score=score,
-        accuracy_score=78,
-        fluency_score=88,
-        error_type="Mispronunciation",
+        similarity_score=78,
+        confidence_score=88,
+        error_type="wrong_consonant",
     )
 
 
@@ -46,8 +47,8 @@ class PromptTests(TestCase):
         self.assertIn("English", build_prompt(context(language="en")))
 
     def test_prompt_forbids_stating_a_score(self):
-        """The number on screen is Azure's. The model must not restate or
-        contradict it."""
+        """The number on screen comes from the pronunciation engine. The
+        model must not restate or contradict it."""
         self.assertIn("Never state a number", build_prompt(context()))
 
     def test_prompt_carries_no_personal_data(self):
@@ -180,7 +181,7 @@ class EvaluationWithAITests(TestCase):
 
     def setUp(self):
         self.language = Language.objects.create(
-            code="en", name="English", locale="en-US", supports_prosody=True
+            code="en", name="English", locale="en-US"
         )
         category = Category.objects.create(
             language=self.language, slug="animals", name="Animals"
@@ -198,19 +199,27 @@ class EvaluationWithAITests(TestCase):
     def audio(self):
         return SimpleUploadedFile("a.wav", b"\x00" * 2048, content_type="audio/wav")
 
-    def evaluate(self, ai_service):
+    def evaluate(self, ai_service, **recognition_kwargs):
+        recognition_kwargs.setdefault("text", "elephant")
+        recognition_kwargs.setdefault("confidence", 90.0)
         service = PracticeEvaluationService(
-            MockPronunciationAssessmentService(forced_score=82),
+            MockSpeechRecognitionService(**recognition_kwargs),
             ai_service=ai_service,
         )
         return service.evaluate(
             profile=self.profile, word=self.word, audio_file=self.audio()
         )
 
+    def _deterministic_message_for(self, attempt):
+        # Derived the same way the code derives it, rather than duplicating
+        # band wording in the test - keeps this test from breaking every time
+        # the copy is tweaked, while still proving the deterministic path ran.
+        return feedback_engine.build_feedback(attempt.display_score, "en")
+
     def test_without_ai_the_deterministic_message_is_stored(self):
         attempt, _ = self.evaluate(None)
 
-        self.assertIn("Good job", attempt.feedback)
+        self.assertEqual(attempt.feedback, self._deterministic_message_for(attempt))
 
     def test_ai_output_replaces_the_deterministic_message(self):
         attempt, _ = self.evaluate(
@@ -223,7 +232,7 @@ class EvaluationWithAITests(TestCase):
         attempt, result = self.evaluate(MockAIService(fail=True))
 
         self.assertIsNotNone(result)
-        self.assertIn("Good job", attempt.feedback)
+        self.assertEqual(attempt.feedback, self._deterministic_message_for(attempt))
 
     def test_an_ai_provider_that_raises_cannot_break_an_attempt(self):
         class Exploding(MockAIService):
@@ -233,10 +242,11 @@ class EvaluationWithAITests(TestCase):
         attempt, result = self.evaluate(Exploding())
 
         self.assertIsNotNone(result)
-        self.assertIn("Good job", attempt.feedback)
+        self.assertEqual(attempt.feedback, self._deterministic_message_for(attempt))
 
     def test_the_score_is_untouched_by_the_ai_layer(self):
-        """The headline number comes from Azure. The LLM only rewords."""
+        """The headline number comes from the pronunciation engine. The LLM
+        only rewords."""
         without, _ = self.evaluate(None)
         with_ai, _ = self.evaluate(
             MockAIService(response="Completely different wording.")
@@ -256,7 +266,7 @@ class EvaluationWithAITests(TestCase):
                 return "should not be used"
 
         service = PracticeEvaluationService(
-            MockPronunciationAssessmentService(simulate_no_speech=True),
+            MockSpeechRecognitionService(simulate_no_speech=True),
             ai_service=Counting(),
         )
         service.evaluate(

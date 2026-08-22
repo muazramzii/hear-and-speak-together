@@ -14,12 +14,15 @@ from apps.accounts.models import LanguageCode
 
 
 class Language(models.Model):
-    """A language the app teaches, plus what Azure can actually measure for it.
+    """A language the app teaches.
 
-    The capability flags exist because Azure AI Speech does **not** expose an
-    identical feature set across locales. They are stored rather than inferred
-    so the API can tell the client exactly which metrics are real, and so the
-    app never displays a score that was never measured.
+    Pronunciation assessment is self-hosted (Whisper plus the pronunciation
+    engine in `apps.practice.services.pronunciation`) and treats every
+    supported language the same way, so - unlike the Azure-backed version of
+    this model - there are no per-locale capability flags here. The
+    supported-language set lives with the engine itself
+    (`_SUPPORTED_LANGUAGES` in `evaluation.py`), since that is what actually
+    has to know which G2P table exists for which code.
     """
 
     code = models.CharField(
@@ -30,61 +33,15 @@ class Language(models.Model):
         _("locale"),
         max_length=16,
         unique=True,
-        help_text=_("BCP-47 locale passed to Azure Speech, e.g. en-US."),
+        help_text=_("BCP-47 locale, e.g. en-US. Used for text-to-speech."),
     )
     is_active = models.BooleanField(_("active"), default=True)
-
-    assessment_provider = models.CharField(
-        _("assessment provider"),
-        max_length=16,
-        choices=[
-            ("default", _("Use SPEECH_PROVIDER setting")),
-            ("azure", _("Azure AI Speech")),
-            ("speechace", _("SpeechAce")),
-            ("mock", _("Mock (no real assessment)")),
-        ],
-        default="default",
-        help_text=_(
-            "Which engine scores this language. Set per language because "
-            "coverage differs: SpeechAce has no Malay, so ms-MY can only use "
-            "Azure or the mock."
-        ),
-    )
-
-    # ---- Azure AI Speech capabilities -------------------------------------
-    # Verified against Microsoft Learn documentation; see
-    # `capabilities_verified_on`. Do not edit these from guesswork - check the
-    # current docs and update the date.
-    supports_pronunciation_assessment = models.BooleanField(
-        _("supports pronunciation assessment"), default=True
-    )
-    supports_prosody = models.BooleanField(
-        _("supports prosody"),
-        default=False,
-        help_text=_("Intonation, stress and rhythm. Azure supports en-US only."),
-    )
-    supports_phoneme_names = models.BooleanField(
-        _("supports phoneme names"),
-        default=False,
-        help_text=_(
-            "Whether Azure returns phoneme identities (IPA) or only scores."
-        ),
-    )
-    supports_syllable_scores = models.BooleanField(
-        _("supports syllable scores"), default=False
-    )
-    capabilities_verified_on = models.DateField(
-        _("capabilities verified on"),
-        null=True,
-        blank=True,
-        help_text=_("When these flags were last checked against Azure's docs."),
-    )
 
     tts_voice = models.CharField(
         _("text-to-speech voice"),
         max_length=64,
         blank=True,
-        help_text=_("Azure neural voice used to pronounce words."),
+        help_text=_("Voice identifier used when reading a word aloud."),
     )
 
     class Meta:
@@ -94,19 +51,6 @@ class Language(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.locale})"
-
-    @property
-    def available_metrics(self):
-        """The score names that are genuinely measurable for this locale.
-
-        The practice API reports this so the client can render only the
-        metrics that exist. Accuracy, fluency and completeness are returned by
-        every supported locale; prosody is the locale-dependent one.
-        """
-        metrics = ["accuracy", "fluency", "completeness", "pronunciation"]
-        if self.supports_prosody:
-            metrics.append("prosody")
-        return metrics
 
 
 class Category(models.Model):
@@ -190,8 +134,8 @@ class Lesson(models.Model):
 class Word(models.Model):
     """A single vocabulary item - the unit the child actually practises.
 
-    `text` is the reference text sent to Azure for scripted pronunciation
-    assessment, so it must be the word exactly as it should be spoken.
+    `text` is the reference text the pronunciation engine scores a recording
+    against, so it must be the word exactly as it should be spoken.
     """
 
     lesson = models.ForeignKey(

@@ -173,24 +173,12 @@
     }
   },
   "practiceNextWord": "Perkataan Seterusnya",
-  "practiceViewDetails": "Lihat Butiran",
-  "practiceHideDetails": "Sembunyi Butiran",
-  "practiceScoredBy": "Dinilai oleh Azure AI Speech untuk {locale}.",
-  "@practiceScoredBy": {
-    "placeholders": {
-      "locale": {
-        "type": "String"
-      }
-    }
-  },
   "practiceChooseProfileFirst": "Pilih profil sebelum berlatih.",
   "practiceOpenSettings": "Buka Tetapan",
   "practiceScoreLabel": "Skor",
-  "metricAccuracy": "Ketepatan",
-  "metricFluency": "Kelancaran",
+  "metricSimilarity": "Persamaan",
+  "metricConfidence": "Keyakinan",
   "metricCompleteness": "Kesempurnaan",
-  "metricPronunciation": "Sebutan",
-  "metricProsody": "Intonasi",
   "errorMicDenied": "Kebenaran mikrofon diperlukan untuk berlatih bertutur.",
   "errorTooShort": "Terlalu pendek. Tahan butang sambil menyebut perkataan.",
   "errorMicUnavailable": "Kami tidak dapat menggunakan mikrofon. Sila cuba lagi.",

@@ -13,14 +13,14 @@ class PracticeAttemptAdmin(admin.ModelAdmin):
         "points_awarded",
         "created_at",
     ]
-    list_filter = ["language_code", "error_type", "created_at"]
+    list_filter = ["language_code", "created_at"]
     search_fields = ["reference_text", "recognized_text", "profile__name"]
     date_hierarchy = "created_at"
     list_select_related = ["profile", "word"]
 
-    # Attempts are an audit trail of what a child actually said and what
-    # Azure actually scored. Editing them by hand would corrupt the analytics
-    # built on top.
+    # Attempts are an audit trail of what a child actually said and what the
+    # pronunciation engine actually scored. Editing them by hand would
+    # corrupt the analytics built on top.
     readonly_fields = [field.name for field in PracticeAttempt._meta.fields]
 
     def has_add_permission(self, request):

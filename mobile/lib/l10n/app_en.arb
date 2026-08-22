@@ -173,24 +173,12 @@
     }
   },
   "practiceNextWord": "Next Word",
-  "practiceViewDetails": "View Details",
-  "practiceHideDetails": "Hide Details",
-  "practiceScoredBy": "Scored by Azure AI Speech for {locale}.",
-  "@practiceScoredBy": {
-    "placeholders": {
-      "locale": {
-        "type": "String"
-      }
-    }
-  },
   "practiceChooseProfileFirst": "Choose a profile before practising.",
   "practiceOpenSettings": "Open Settings",
   "practiceScoreLabel": "Score",
-  "metricAccuracy": "Accuracy",
-  "metricFluency": "Fluency",
+  "metricSimilarity": "Similarity",
+  "metricConfidence": "Confidence",
   "metricCompleteness": "Completeness",
-  "metricPronunciation": "Pronunciation",
-  "metricProsody": "Intonation",
   "errorMicDenied": "Microphone permission is needed to practise speaking.",
   "errorTooShort": "That was too short. Hold the button while you say the word.",
   "errorMicUnavailable": "We could not use the microphone. Please try again.",

@@ -1,6 +1,6 @@
 # Testing
 
-**379 tests** — 276 backend, 103 Flutter. All run offline, need no API key, and
+**333 tests** — 236 backend, 97 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -19,44 +19,50 @@ cd mobile && flutter analyze
 
 ## The rule that shapes everything
 
-**No automated test may call a paid API.**
+**No automated test may call a paid API, or load a real speech model.**
 
-A suite that hits Azure or an LLM costs money on every run, needs a key that
-cannot be committed, fails without internet, and makes results depend on a
-third party's uptime. So both external services sit behind an abstraction with
-a mock implementation, selected by configuration:
+A suite that hits an LLM costs money on every run and needs a key that cannot
+be committed; a suite that loads a real Whisper model is slow and can trigger
+a multi-hour first-run download. So both sit behind an abstraction with a
+mock implementation, selected by configuration:
 
 | Service | Real | Mock | Selected by |
 | --- | --- | --- | --- |
-| Pronunciation | `Azure...Service` / `SpeechAceAssessmentService` | `MockPronunciationAssessmentService` | `Language.assessment_provider`, else `SPEECH_PROVIDER` |
+| Speech recognition | `WhisperSpeechRecognitionService` | `MockSpeechRecognitionService` | `SPEECH_PROVIDER` |
 | AI feedback | `GeminiAIService` / `OpenAIService` | `MockAIService` | `AI_PROVIDER` |
 
 Both default to the mock, so a fresh checkout runs the full suite immediately.
+The pronunciation engine downstream of recognition is **never** mocked — it
+is deterministic Python with no external dependency, so the real engine runs
+in every test, exercising the same code path production uses.
 
-**The mock tells the truth about locales.** `MockPronunciationAssessmentService`
-returns `prosody_score=None` when `enable_prosody=False`, exactly as Azure does
-for `ms-MY`. A mock that returned a prosody number for every locale would hide
-the very bug the capability layer exists to prevent.
+**There is nothing per-locale for a mock to get wrong.** Every attempt in
+both languages carries the same three metrics — similarity, confidence,
+completeness — because the engine measures the same three things regardless
+of language. A dedicated test (`test_no_score_is_ever_fabricated_as_prosody`)
+asserts no prosody-shaped field exists on the engine's result at all.
 
 ---
 
 ## What is covered
 
-### Backend (276)
+### Backend (236)
 
 | Area | Examples |
 | --- | --- |
 | Health | 200/503 paths, public access, DB reachability |
 | Auth | Registration, login, JWT refresh, `/me`, role permissions |
-| Content | Language capabilities, per-language filtering, quiz rounds |
+| Content | Per-language filtering, quiz rounds |
 | Profiles | Ownership isolation, levelling, streaks |
-| Practice | Assessment, feedback bands, evaluation flow, attempt history |
+| Recognition | Mock service behaviour, silence handling, factory selection |
+| Pronunciation engine | Scoring formula, error classification against the project's own worked examples, configurable weights, completeness capping |
+| Practice | Evaluation flow, feedback bands, attempt history |
 | AI feedback | Every provider failure path |
 | Analytics | Weak words, category performance, lesson progress |
 | Achievements | Award rules, no double-awarding, bonus points |
 | Supervisors | Access filtering, share-code linking, unlinking |
 
-### Flutter (103)
+### Flutter (97)
 
 Auth controller and login screen, API error translation, content and progress
 models, practice state machine, quiz session controller, word visuals, and
@@ -75,13 +81,23 @@ test_malay_content_is_authored_not_translated
 Asserts `kucing` and `gajah` are present and `cat` and `elephant` are absent.
 Would fail immediately if anyone swapped in runtime translation.
 
-**Prosody is never fabricated for Malay.**
+**No score is ever fabricated as prosody.**
 ```
-test_tips_never_mention_a_metric_that_was_not_measured
-a Malay result never exposes an intonation score
+test_no_score_is_ever_fabricated_as_prosody
 ```
-The design mock showed an intonation row on a Malay word. Azure does not
-measure it. These tests keep it out.
+The design mock once showed an intonation row on a Malay word. Nothing in
+this pipeline has an acoustic signal to measure intonation from, for either
+language, so the field does not exist on the engine's result at all — this
+test keeps it that way.
+
+**Errors are only reported when the alignment actually supports them.**
+```
+test_a_dropped_final_sound_is_a_missing_ending
+test_a_wrong_consonant_is_penalised_and_classified
+```
+Run against the project's own worked examples (`bola`→`bota`, `gajah`→`gaja`)
+to prove the phoneme-alignment error detector classifies real, specific
+mistakes rather than a generic "wrong" flag.
 
 **The LLM cannot influence the score.**
 ```
@@ -141,25 +157,22 @@ allow-listed explicitly.
 
 `.github/workflows/tests.yml` runs both suites on every push and pull request.
 It needs **no secrets**: `SPEECH_PROVIDER` and `AI_PROVIDER` default to their
-mocks, so CI never spends money or needs an Azure key.
+mocks, so CI never spends money and never loads a real Whisper model.
 
 | Job | Steps |
 | --- | --- |
-| Django | migration-drift check, `manage.py check`, full test suite against a PostgreSQL 18 service container |
+| Django | NLTK data fetch (cached), migration-drift check, `manage.py check`, full test suite against a PostgreSQL 18 service container |
 | Flutter | `dart format` check, `flutter analyze`, full test suite |
+
+CI does fetch one thing over the network even with the recognition mock in
+use: NLTK's `averaged_perceptron_tagger_eng` and `cmudict` resources, which
+the pronunciation engine's real English G2P step needs on every run (the
+engine itself is never mocked — see above). That download is not a paid API
+and is cached between runs by `actions/cache`.
 
 The migration-drift step (`makemigrations --check --dry-run`) fails the build
 if a model was changed without a matching migration — a mistake that otherwise
 only shows up when someone else pulls and cannot migrate.
-
----
-
-## Verifying Azure for real
-
-The one thing CI cannot cover, by design. `manage.py check_azure` makes a
-single deliberate call and reports what came back — see
-[azure-speech.md](azure-speech.md). Its own logic is tested with the service
-patched out; the live call is a manual step.
 
 ---
 
@@ -178,10 +191,11 @@ server and a seeded database.
 
 Stated plainly, because a test report that overclaims is worse than none.
 
-- **The real Azure service has never been called.** Everything is verified
-  through the mock. `manage.py check_azure` exists to make that first live
-  call a deliberate, informative step, but it has only been exercised with the
-  service patched out — nobody has yet run it against a real subscription.
+- **The real Whisper model is verified manually, not by the automated suite.**
+  Loading the model and transcribing real audio was exercised directly during
+  development (see [pronunciation-engine.md](pronunciation-engine.md) for the
+  measured numbers), but the automated suite only ever runs against the mock
+  recognition service — by design, so CI stays fast and offline.
 - **No microphone hardware test.** Recording is verified through a fake; real
   device capture needs an emulator or phone.
 - **No widget tests for the newer screens** — Learn, Listen, Quiz, Progress,

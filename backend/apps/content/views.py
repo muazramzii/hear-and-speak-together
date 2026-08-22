@@ -27,8 +27,7 @@ from .serializers import (
 
 
 class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
-    """GET /api/languages/ - the languages on offer and what Azure can
-    measure for each."""
+    """GET /api/languages/ - the languages on offer."""
 
     serializer_class = LanguageSerializer
     permission_classes = [IsAuthenticated]

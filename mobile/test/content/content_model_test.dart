@@ -3,73 +3,18 @@ import 'package:hear_speak_together/models/content.dart';
 import 'package:hear_speak_together/models/learner_profile.dart';
 
 void main() {
-  group('LanguageCapabilities', () {
-    test('english exposes prosody among its metrics', () {
-      final capabilities = LanguageCapabilities.fromJson(const {
-        'pronunciation_assessment': true,
-        'prosody': true,
-        'phoneme_names': true,
-        'syllable_scores': true,
-        'available_metrics': [
-          'accuracy',
-          'fluency',
-          'completeness',
-          'pronunciation',
-          'prosody',
-        ],
-      });
-
-      expect(capabilities.prosody, isTrue);
-      expect(capabilities.supports('prosody'), isTrue);
-    });
-
-    test('malay reports no prosody, so the UI must not offer it', () {
-      final capabilities = LanguageCapabilities.fromJson(const {
-        'pronunciation_assessment': true,
-        'prosody': false,
-        'phoneme_names': false,
-        'syllable_scores': false,
-        'available_metrics': [
-          'accuracy',
-          'fluency',
-          'completeness',
-          'pronunciation',
-        ],
-      });
-
-      expect(capabilities.prosody, isFalse);
-      expect(capabilities.supports('prosody'), isFalse);
-      expect(capabilities.supports('accuracy'), isTrue);
-    });
-
-    test('a missing capability block defaults to nothing supported', () {
-      final capabilities = LanguageCapabilities.fromJson(const {});
-
-      expect(capabilities.prosody, isFalse);
-      expect(capabilities.availableMetrics, isEmpty);
-    });
-  });
-
   group('LanguageInfo', () {
-    test('parses the locale and capability block together', () {
+    test('parses the locale', () {
       final language = LanguageInfo.fromJson(const {
         'id': 2,
         'code': 'ms',
         'name': 'Bahasa Melayu',
         'locale': 'ms-MY',
         'tts_voice': 'ms-MY-YasminNeural',
-        'capabilities': {
-          'pronunciation_assessment': true,
-          'prosody': false,
-          'phoneme_names': false,
-          'syllable_scores': false,
-          'available_metrics': ['accuracy', 'fluency'],
-        },
       });
 
       expect(language.locale, 'ms-MY');
       expect(language.ttsVoice, 'ms-MY-YasminNeural');
-      expect(language.capabilities.prosody, isFalse);
     });
   });
 
