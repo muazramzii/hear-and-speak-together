@@ -10,11 +10,10 @@ from rest_framework.views import APIView
 
 from .models import PracticeAttempt
 from .serializers import AttemptSerializer, EvaluateRequestSerializer
-from .services import feedback as feedback_engine
-from .services.base import AssessmentError
 from .services.ai.factory import get_ai_service
+from .services.base import AssessmentError
 from .services.evaluation import PracticeEvaluationService
-from .services.factory import get_pronunciation_service
+from .services.factory import get_recognition_service
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +38,7 @@ class EvaluatePracticeView(APIView):
         language = word.lesson.category.language
 
         service = PracticeEvaluationService(
-            # Per language: SpeechAce cannot score ms-MY, so Malay routes to a
-            # different provider than English.
-            get_pronunciation_service(language),
+            get_recognition_service(),
             # None unless ENABLE_AI_FEEDBACK is on, so the default path makes
             # no LLM call at all.
             ai_service=get_ai_service(),
@@ -68,39 +65,26 @@ class EvaluatePracticeView(APIView):
             )
 
         return Response(
-            self._build_response(attempt, result, language),
+            self._build_response(attempt),
             status=status.HTTP_200_OK,
         )
 
-    def _build_response(self, attempt, result, language):
-        """Shapes the result for the client.
-
-        `scores` carries only what was actually measured; a metric the locale
-        does not support is present as null so the app can show "not
-        measured" rather than invent a value. `available_metrics` tells the
-        client which rows to render at all.
-        """
-        heard_nothing = result is None
+    def _build_response(self, attempt):
+        heard_nothing = attempt.pronunciation_score is None
 
         return {
             "attempt_id": attempt.id,
-            "reference_text": attempt.reference_text,
-            "recognized_text": attempt.recognized_text,
+            "reference": attempt.reference_text,
+            "recognized": attempt.recognized_text,
             "language": attempt.language_code,
             "locale": attempt.locale,
             "heard_speech": not heard_nothing,
             "score": attempt.display_score,
-            "scores": {
-                "pronunciation": attempt.pronunciation_score,
-                "accuracy": attempt.accuracy_score,
-                "fluency": attempt.fluency_score,
-                "completeness": attempt.completeness_score,
-                "prosody": attempt.prosody_score,
-            },
-            "available_metrics": language.available_metrics,
-            "error_type": attempt.error_type or None,
+            "similarity": attempt.similarity_score,
+            "confidence": attempt.confidence_score,
+            "completeness": attempt.completeness_score,
+            "errors": attempt.errors,
             "feedback": attempt.feedback,
-            "tips": [] if heard_nothing else feedback_engine.build_tips(result),
             "points_awarded": attempt.points_awarded,
             "profile": {
                 "id": attempt.profile_id,

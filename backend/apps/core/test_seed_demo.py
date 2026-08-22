@@ -85,25 +85,20 @@ class SeedDemoTests(TestCase):
         self.assertGreater(len(analytics.weak_words(profile)), 0)
 
     @override_settings(DEBUG=True)
-    def test_malay_demo_data_never_invents_a_prosody_score(self):
-        """Azure does not assess prosody for ms-MY, so seeded data must not
-        imply a measurement the real system cannot make."""
+    def test_malay_demo_data_carries_the_same_score_fields_as_english(self):
+        """There is no prosody metric in this architecture for any language -
+        both en and ms should get identically-shaped scored attempts."""
         seed_content()
 
         call_command("seed_demo", verbosity=0)
         malay_attempts = PracticeAttempt.objects.filter(language_code="ms")
-
-        self.assertGreater(malay_attempts.count(), 0)
-        self.assertFalse(malay_attempts.exclude(prosody_score=None).exists())
-
-    @override_settings(DEBUG=True)
-    def test_english_demo_data_does_carry_prosody(self):
-        seed_content()
-
-        call_command("seed_demo", verbosity=0)
         english_attempts = PracticeAttempt.objects.filter(language_code="en")
 
-        self.assertTrue(english_attempts.exclude(prosody_score=None).exists())
+        self.assertGreater(malay_attempts.count(), 0)
+        self.assertGreater(english_attempts.count(), 0)
+        for attempts in (malay_attempts, english_attempts):
+            self.assertGreater(attempts.exclude(similarity_score=None).count(), 0)
+            self.assertGreater(attempts.exclude(confidence_score=None).count(), 0)
 
     @override_settings(DEBUG=True)
     def test_rerunning_resets_rather_than_accumulates(self):

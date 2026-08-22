@@ -92,7 +92,7 @@ final contentRepositoryProvider = Provider<ContentRepository>((ref) {
   return ContentRepository(ref.watch(dioProvider));
 });
 
-/// The languages on offer, with their Azure capability blocks.
+/// The languages on offer.
 final languagesProvider = FutureProvider<List<LanguageInfo>>((ref) {
   return ref.watch(contentRepositoryProvider).fetchLanguages();
 });

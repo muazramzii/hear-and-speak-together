@@ -16,9 +16,9 @@ class RecordingException implements Exception {
 
 /// Captures a short spoken word.
 ///
-/// Records 16 kHz mono PCM WAV because that is what Azure's speech models
-/// expect; handing them a compressed format risks a worse score for reasons
-/// that have nothing to do with the child's pronunciation.
+/// Records 16 kHz mono PCM WAV because that is what the server's speech
+/// recognition model expects; handing it a compressed format risks a worse
+/// score for reasons that have nothing to do with the child's pronunciation.
 class AudioRecorderService {
   AudioRecorderService(this._recorder);
 

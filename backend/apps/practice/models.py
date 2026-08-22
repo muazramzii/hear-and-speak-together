@@ -16,14 +16,16 @@ def attempt_audio_path(instance, filename):
 
 
 class PracticeAttempt(models.Model):
-    """One recording, scored.
+    """One recording, scored by the self-hosted pronunciation engine.
 
     Attached to a `Profile` rather than a `User`: on a shared family account
     the attempt belongs to the child who made it.
 
-    Every score is nullable on purpose. Azure does not measure every metric
-    for every locale - prosody is en-US only - and a null here means "not
-    measured". It must never be displayed as zero.
+    There is no prosody field here, unlike the Azure-backed version of this
+    model. Whisper plus a text-level phonetic comparison has no acoustic
+    signal to derive stress or intonation from, so the metric does not exist
+    in this architecture at all - not a null placeholder for something that
+    might one day be measured, just absent.
     """
 
     profile = models.ForeignKey(
@@ -41,24 +43,32 @@ class PracticeAttempt(models.Model):
         _("recognized text"), max_length=255, blank=True
     )
 
-    # ---- Azure scores (0-100) ----
-    accuracy_score = models.FloatField(_("accuracy"), null=True, blank=True)
-    fluency_score = models.FloatField(_("fluency"), null=True, blank=True)
-    pronunciation_score = models.FloatField(
-        _("pronunciation"), null=True, blank=True
-    )
-    completeness_score = models.FloatField(
-        _("completeness"), null=True, blank=True
-    )
-    prosody_score = models.FloatField(
-        _("prosody"),
+    # ---- Pronunciation engine scores (0-100) ----
+    similarity_score = models.FloatField(
+        _("similarity"),
         null=True,
         blank=True,
-        help_text=_("Null where the locale does not support prosody (ms-MY)."),
+        help_text=_("Phonetic-feature distance between reference and spoken."),
+    )
+    confidence_score = models.FloatField(
+        _("confidence"),
+        null=True,
+        blank=True,
+        help_text=_("Whisper's own confidence in the transcription."),
+    )
+    completeness_score = models.FloatField(_("completeness"), null=True, blank=True)
+    pronunciation_score = models.FloatField(
+        _("pronunciation"),
+        null=True,
+        blank=True,
+        help_text=_("The single weighted score shown to the child."),
     )
 
-    error_type = models.CharField(
-        _("error type"), max_length=32, blank=True
+    errors = models.JSONField(
+        _("errors"),
+        default=list,
+        blank=True,
+        help_text=_("Structured list of {type, expected, detected}."),
     )
     feedback = models.TextField(_("feedback"), blank=True)
     points_awarded = models.PositiveIntegerField(_("points awarded"), default=0)
@@ -86,11 +96,9 @@ class PracticeAttempt(models.Model):
 
     @property
     def display_score(self):
-        if self.pronunciation_score is not None:
-            return round(self.pronunciation_score)
-        if self.accuracy_score is not None:
-            return round(self.accuracy_score)
-        return None
+        if self.pronunciation_score is None:
+            return None
+        return round(self.pronunciation_score)
 
     @property
     def was_successful(self):

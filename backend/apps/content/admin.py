@@ -23,40 +23,9 @@ class LessonInline(admin.TabularInline):
 
 @admin.register(Language)
 class LanguageAdmin(admin.ModelAdmin):
-    list_display = [
-        "name",
-        "code",
-        "locale",
-        "supports_prosody",
-        "supports_phoneme_names",
-        "capabilities_verified_on",
-        "is_active",
-    ]
-    list_filter = ["is_active", "supports_prosody"]
+    list_display = ["name", "code", "locale", "tts_voice", "is_active"]
+    list_filter = ["is_active"]
     search_fields = ["name", "code", "locale"]
-
-    fieldsets = [
-        (None, {"fields": ["code", "name", "locale", "is_active", "tts_voice"]}),
-        (
-            "Azure AI Speech capabilities",
-            {
-                "description": (
-                    "These flags must reflect Azure's <em>documented</em> "
-                    "support for the locale. Prosody, for example, is en-US "
-                    "only. Never enable a flag Azure does not actually "
-                    "support - the app would display a score that was never "
-                    "measured. Update the verification date when you check."
-                ),
-                "fields": [
-                    "supports_pronunciation_assessment",
-                    "supports_prosody",
-                    "supports_phoneme_names",
-                    "supports_syllable_scores",
-                    "capabilities_verified_on",
-                ],
-            },
-        ),
-    ]
 
 
 @admin.register(Category)

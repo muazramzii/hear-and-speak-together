@@ -19,7 +19,7 @@ a threshold, completion per lesson. That is what SQL is for.
 ```
 User (the login)
  └─ Profile (the learner)          one account, several children
-     ├─ PracticeAttempt            one spoken attempt, scored by Azure
+     ├─ PracticeAttempt            one spoken attempt, scored by the pronunciation engine
      ├─ QuizSession                one finished Listen/Quiz run
      ├─ LessonProgress             standing in one lesson
      └─ ProfileAchievement         badges earned
@@ -63,15 +63,13 @@ second source of truth that can disagree with the first.
 
 ---
 
-## Language — capability flags
+## Language
 
-`Language` carries what Azure can actually measure for its locale:
-`supports_prosody`, `supports_phoneme_names`, `supports_syllable_scores`, plus
-`capabilities_verified_on`.
-
-These are **verified facts, not guesses** — Azure supports prosody assessment
-for `en-US` only. See [azure-speech.md](azure-speech.md). Enabling a flag Azure
-does not support would make the app display a score that was never measured.
+`Language` carries only what every language needs identically: `code`,
+`name`, `locale`, `tts_voice`, `is_active`. There are no capability flags —
+the pronunciation engine measures the same three metrics (similarity,
+confidence, completeness) for every supported language, so there is nothing
+per-locale to record. See [pronunciation-engine.md](pronunciation-engine.md).
 
 ---
 
@@ -107,17 +105,20 @@ artwork simply takes precedence once it is supplied.
 
 Deliberately separate tables.
 
-A `PracticeAttempt` is a **spoken** attempt with Azure scores. A `QuizSession`
-is a tally of taps on pictures. Folding the second into the first would mean a
-pronunciation column that is meaningless for half the rows, and it would
-corrupt the score averages the analytics rest on.
+A `PracticeAttempt` is a **spoken** attempt, scored by the self-hosted
+pronunciation engine: `similarity_score`, `confidence_score`,
+`completeness_score`, `pronunciation_score`, and a structured `errors`
+JSON list. A `QuizSession` is a tally of taps on pictures. Folding the second
+into the first would mean a pronunciation column that is meaningless for half
+the rows, and it would corrupt the score averages the analytics rest on.
 
-Every score column on `PracticeAttempt` is **nullable on purpose**. A `null`
-means *not measured for this locale* — for example prosody on `ms-MY`. It must
-never be read as zero.
+The score columns are **nullable on purpose**. A `null` means nothing was
+heard — the recording held no usable speech — not that the score was zero.
+There is no `null`-for-locale case in this architecture: every attempt in
+both languages gets the same three metrics.
 
-Attempts are an audit trail of what a child said and what Azure returned, so
-the Django admin marks them read-only and disallows adding them by hand.
+Attempts are an audit trail of what a child said and what the engine scored,
+so the Django admin marks them read-only and disallows adding them by hand.
 
 ---
 

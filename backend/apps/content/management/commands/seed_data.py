@@ -12,17 +12,11 @@ word is frequently the wrong word to teach. Reference texts must be what a
 Malay child would actually say.
 """
 
-from datetime import date
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.accounts.models import LanguageCode
 from apps.content.models import Category, Difficulty, Language, Lesson, Word
-
-# Date on which the Azure capability flags below were checked against
-# https://learn.microsoft.com/azure/ai-services/speech-service/language-support
-CAPABILITIES_VERIFIED_ON = date(2026, 8, 19)
 
 LANGUAGES = [
     {
@@ -30,23 +24,12 @@ LANGUAGES = [
         "name": "English",
         "locale": "en-US",
         "tts_voice": "en-US-AnaNeural",  # child voice
-        "supports_pronunciation_assessment": True,
-        "supports_prosody": True,
-        "supports_phoneme_names": True,
-        "supports_syllable_scores": True,
     },
     {
         "code": LanguageCode.MALAY,
         "name": "Bahasa Melayu",
         "locale": "ms-MY",
         "tts_voice": "ms-MY-YasminNeural",
-        "supports_pronunciation_assessment": True,
-        # Azure documents prosody assessment as en-US only, and phoneme
-        # *names* as en-US (IPA) / en-US + zh-CN (SAPI). For ms-MY only the
-        # phoneme score is returned, with no phoneme identity.
-        "supports_prosody": False,
-        "supports_phoneme_names": False,
-        "supports_syllable_scores": False,
     },
 ]
 
@@ -343,14 +326,12 @@ class Command(BaseCommand):
                 defaults={
                     **{k: v for k, v in spec.items() if k != "code"},
                     "is_active": True,
-                    "capabilities_verified_on": CAPABILITIES_VERIFIED_ON,
                 },
             )
             languages[spec["code"]] = language
             self.log(
                 f"  {'created' if created else 'updated'} language "
-                f"{language.locale} (prosody="
-                f"{'yes' if language.supports_prosody else 'no'})"
+                f"{language.locale}"
             )
         return languages
 

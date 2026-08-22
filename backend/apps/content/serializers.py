@@ -4,23 +4,9 @@ from .models import Category, Language, Lesson, Word
 
 
 class LanguageSerializer(serializers.ModelSerializer):
-    """Includes the capability block so the client knows which pronunciation
-    metrics are real for this locale and can hide the rest."""
-
-    capabilities = serializers.SerializerMethodField()
-
     class Meta:
         model = Language
-        fields = ["id", "code", "name", "locale", "tts_voice", "capabilities"]
-
-    def get_capabilities(self, language):
-        return {
-            "pronunciation_assessment": language.supports_pronunciation_assessment,
-            "prosody": language.supports_prosody,
-            "phoneme_names": language.supports_phoneme_names,
-            "syllable_scores": language.supports_syllable_scores,
-            "available_metrics": language.available_metrics,
-        }
+        fields = ["id", "code", "name", "locale", "tts_voice"]
 
 
 class WordSerializer(serializers.ModelSerializer):

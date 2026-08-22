@@ -5,8 +5,8 @@ from apps.profiles.models import Profile
 
 from .models import PracticeAttempt
 
-# A short word recording. Anything much larger is either a mistake or an
-# attempt to push cost onto the Azure call.
+# A short word recording. Anything much larger is either a mistake or a
+# needlessly long clip for the recognition model to process.
 MAX_AUDIO_BYTES = 5 * 1024 * 1024
 
 
@@ -65,12 +65,11 @@ class AttemptSerializer(serializers.ModelSerializer):
             "reference_text",
             "recognized_text",
             "score",
-            "accuracy_score",
-            "fluency_score",
+            "similarity_score",
+            "confidence_score",
             "pronunciation_score",
             "completeness_score",
-            "prosody_score",
-            "error_type",
+            "errors",
             "feedback",
             "points_awarded",
             "created_at",

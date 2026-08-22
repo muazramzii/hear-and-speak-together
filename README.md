@@ -5,11 +5,12 @@ helps children practise listening and speaking. Children hear a target word,
 record themselves saying it, and receive a pronunciation score with friendly,
 age-appropriate feedback.
 
-> **Status: feature-complete through Phase 9.**
-> Authentication, bilingual content, Azure pronunciation assessment, four
-> learning modes, analytics, achievements and a parent/teacher dashboard are
-> all built and tested. **The Azure integration has not yet been run against a
-> real Azure subscription** — see [docs/azure-speech.md](docs/azure-speech.md).
+> **Status: feature-complete through Phase 10.**
+> Authentication, bilingual content, self-hosted speech recognition and
+> pronunciation scoring, four learning modes, analytics, achievements and a
+> parent/teacher dashboard are all built and tested — see
+> [docs/pronunciation-engine.md](docs/pronunciation-engine.md) for how
+> pronunciation is scored.
 
 To see it running, follow [Backend setup](#backend-setup), then
 `python manage.py seed_data`, `seed_achievements` and `seed_demo`, and sign in
@@ -25,16 +26,18 @@ as `demo@hearspeak.test` / `HearSpeak!2026`.
 | API | Django + Django REST Framework |
 | Database | PostgreSQL |
 | Authentication | JWT (`djangorestframework-simplejwt`), `flutter_secure_storage` |
-| Pronunciation assessment | Azure AI Speech or SpeechAce, per language, server-side only |
+| Speech recognition | Self-hosted Whisper (`faster-whisper`), server-side only |
+| Pronunciation scoring | Custom deterministic Python engine (phonetic-feature distance, no ML, no LLM) |
 | Feedback | Deterministic rules, with an optional LLM layer |
 | Analytics | Rule-based, in Django — no ML, no LLM |
 
-Azure and LLM credentials live **only** on the Django server. The Flutter app
-never holds a speech or AI key; it uploads audio to Django, and Django talks to
-Azure on its behalf.
+Recognition and scoring both run **only** on the Django server. The Flutter
+app never holds a speech key and never talks to a speech provider directly —
+it uploads audio to Django, and everything after that happens in-process.
+There is no paid API anywhere in this pipeline.
 
 ```
-Flutter  ──HTTPS──>  Django REST API  ──>  Azure AI Speech
+Flutter  ──HTTPS──>  Django REST API  ──>  Whisper (self-hosted)  ──>  PronunciationEngine
                           │
                           └──>  PostgreSQL
 ```
@@ -172,8 +175,8 @@ origin to `CORS_ALLOWED_ORIGINS` in `backend/.env` and add the host to
 ## Security notes
 
 - `.env` is git-ignored; only `.env.example` is committed.
-- `SECRET_KEY`, `DATABASE_URL`, `AZURE_SPEECH_KEY` and `AI_API_KEY` are read
-  from the environment and never hardcoded.
+- `SECRET_KEY`, `DATABASE_URL` and `AI_API_KEY` are read from the environment
+  and never hardcoded.
 - Plain HTTP is permitted on Android for development hosts only
   (`10.0.2.2`, `localhost`, `127.0.0.1`) via
   `android/app/src/main/res/xml/network_security_config.xml`. Everything else,
@@ -186,22 +189,23 @@ origin to `CORS_ALLOWED_ORIGINS` in `backend/.env` and add the host to
 | Document | What it covers |
 | --- | --- |
 | [architecture.md](docs/architecture.md) | Design decisions and why each was made |
-| [azure-speech.md](docs/azure-speech.md) | How pronunciation is scored, and the locale limits |
+| [pronunciation-engine.md](docs/pronunciation-engine.md) | How pronunciation is scored: self-hosted Whisper plus a custom engine |
 | [database.md](docs/database.md) | Schema, and why it is shaped this way |
 | [api.md](docs/api.md) | Every endpoint, with request and response shapes |
 | [development.md](docs/development.md) | Day-to-day commands and environment variables |
 | [testing.md](docs/testing.md) | What is tested, and what is not |
 | [deployment.md](docs/deployment.md) | Going live, and production hardening |
 
-**Start with [azure-speech.md](docs/azure-speech.md)** if you want the single
-most important design decision: why an acoustic service scores pronunciation
-and a language model never does.
+**Start with [pronunciation-engine.md](docs/pronunciation-engine.md)** if you
+want the single most important design decision: why speech recognition and
+pronunciation scoring are two separate stages, and why a language model is
+never the source of the score.
 
 ---
 
 ## Tests
 
-**379 tests** — 276 backend, 103 Flutter. All run offline and call no paid API.
+**333 tests** — 236 backend, 97 Flutter. All run offline and call no paid API.
 
 ```bash
 cd backend && .venv\Scripts\python.exe manage.py test

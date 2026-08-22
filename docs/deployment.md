@@ -9,12 +9,16 @@ the API somewhere a phone can reach it.
 
 | Piece | Where it goes |
 | --- | --- |
-| Django API | A Python host (Render, Railway, Fly.io, a VPS) |
+| Django API | A Python host with enough CPU/RAM to run Whisper (Render, Railway, Fly.io, a VPS) |
 | PostgreSQL | A managed database, or the same host |
 | Flutter app | An APK you install or distribute |
-| Azure Speech | Already hosted — you only need the key |
+| Whisper | Runs inside the Django process — no separate service, but the host needs the disk space and RAM for the model weights |
 
-The mobile app is not "deployed"; it is built. Only the API needs a home.
+The mobile app is not "deployed"; it is built. Speech recognition is not
+"deployed" either — it is part of the Django API itself. Only the API needs
+a home, and it needs enough resources to hold a Whisper model in memory and
+run inference on CPU (or GPU, if `WHISPER_DEVICE=cuda` is available on the
+host).
 
 ---
 
@@ -27,9 +31,10 @@ your machine and must not follow the app into production.
 python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
-**Never commit `.env`.** The repository is public. `AZURE_SPEECH_KEY` and
-`AI_API_KEY` belong only in the host's environment-variable settings, never in
-`.env.example`, tests, or documentation.
+**Never commit `.env`.** The repository is public. `AI_API_KEY` belongs only
+in the host's environment-variable settings, never in `.env.example`, tests,
+or documentation. There is no speech-provider key to protect — recognition
+runs entirely on infrastructure this project already controls.
 
 ---
 
@@ -42,14 +47,22 @@ ALLOWED_HOSTS=api.yourdomain.com
 DATABASE_URL=postgres://user:password@host:5432/dbname
 CORS_ALLOWED_ORIGINS=https://yourdomain.com
 
-AZURE_SPEECH_KEY=<from the Azure portal>
-AZURE_SPEECH_REGION=southeastasia
-SPEECH_PROVIDER=azure
+SPEECH_PROVIDER=whisper
+WHISPER_MODEL_SIZE=base
+WHISPER_DEVICE=cpu
+WHISPER_COMPUTE_TYPE=int8
 
 AI_PROVIDER=mock
 ENABLE_AI_FEEDBACK=False
 STORE_AUDIO=False
 ```
+
+The first request after deploy that actually needs Whisper will download and
+cache the model weights, which can be slow on an unauthenticated connection
+(see [pronunciation-engine.md](pronunciation-engine.md)) — consider warming
+this up deliberately (e.g. a one-off `manage.py shell` call that loads the
+model) rather than letting a child's first real attempt be the first
+download.
 
 `DEBUG=False` is the switch that matters. With it off, `config/settings.py`
 applies the security settings below automatically.
@@ -170,23 +183,25 @@ demonstration; the Play Store is not.
 
 | Service | Notes |
 | --- | --- |
-| Azure Speech | Free tier covers 5 hours of audio per month — ample for a demo, since each attempt is one word |
+| Speech recognition | No per-call cost — Whisper runs on the API host's own CPU/RAM, already being paid for |
 | PostgreSQL | Free tiers exist on most hosts |
-| API host | Free tiers usually sleep when idle; expect a slow first request |
-| LLM feedback | Off by default. Leave it off unless demonstrating it |
+| API host | Free tiers usually sleep when idle; expect a slow first request, and a Whisper host needs more RAM than a typical free tier offers |
+| LLM feedback | Off by default. Leave it off unless demonstrating it — it is the only piece of this pipeline with a genuine per-call cost |
 
-The controls that keep this near zero — mock providers, on-device TTS, no
-stored audio — are described in [azure-speech.md](azure-speech.md).
+The controls that keep this near zero — mock providers by default,
+on-device TTS, no stored audio — are described in
+[pronunciation-engine.md](pronunciation-engine.md).
 
 ---
 
 ## Before a demo
 
-1. Set `SPEECH_PROVIDER=azure` and practise one real word. **This is the step
-   most likely to surprise you**, because it is the first time the app talks to
-   Azure for real.
-2. Check `ms-MY` returns `null` prosody, as documented.
-3. Confirm the APK reaches the deployed API, not `localhost`.
-4. Seed content and create at least one profile with practice history, so the
+1. Set `SPEECH_PROVIDER=whisper` and practise one real word well before the
+   demo, not the night before. **This is the step most likely to surprise
+   you**: the first real transcription on a cold cache can trigger a slow
+   model download (see [pronunciation-engine.md](pronunciation-engine.md)).
+2. Confirm the APK reaches the deployed API, not `localhost`.
+3. Seed content and create at least one profile with practice history, so the
    progress screens are not empty.
-5. If the host sleeps when idle, wake it first.
+4. If the host sleeps when idle, wake it first — and remember a cold Whisper
+   model adds to that wake-up time.

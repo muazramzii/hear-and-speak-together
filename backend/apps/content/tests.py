@@ -110,46 +110,6 @@ class SeedDataTests(TestCase):
         self.assertNotIn(word.pk, word.distractors.values_list("pk", flat=True))
 
 
-class LanguageCapabilityTests(TestCase):
-    """The capability flags must reflect Azure's documented behaviour.
-
-    Azure supports prosody assessment for en-US only, and returns phoneme
-    *names* only for en-US. Getting this wrong would make the app display a
-    score that was never measured.
-    """
-
-    def setUp(self):
-        seed()
-
-    def test_english_supports_prosody(self):
-        english = Language.objects.get(code="en")
-
-        self.assertTrue(english.supports_prosody)
-        self.assertIn("prosody", english.available_metrics)
-
-    def test_malay_does_not_support_prosody(self):
-        malay = Language.objects.get(code="ms")
-
-        self.assertFalse(malay.supports_prosody)
-        self.assertNotIn("prosody", malay.available_metrics)
-
-    def test_malay_does_not_expose_phoneme_names(self):
-        malay = Language.objects.get(code="ms")
-
-        self.assertFalse(malay.supports_phoneme_names)
-        self.assertFalse(malay.supports_syllable_scores)
-
-    def test_both_locales_support_core_assessment(self):
-        for code in ("en", "ms"):
-            language = Language.objects.get(code=code)
-            self.assertTrue(language.supports_pronunciation_assessment)
-            for metric in ("accuracy", "fluency", "completeness", "pronunciation"):
-                self.assertIn(metric, language.available_metrics)
-
-    def test_capabilities_record_when_they_were_verified(self):
-        self.assertIsNotNone(Language.objects.get(code="ms").capabilities_verified_on)
-
-
 class LanguageAPITests(AuthenticatedAPITestCase):
     def setUp(self):
         super().setUp()
@@ -161,23 +121,13 @@ class LanguageAPITests(AuthenticatedAPITestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    def test_lists_active_languages_with_capabilities(self):
+    def test_lists_active_languages(self):
         response = self.client.get("/api/languages/")
 
         self.assertEqual(response.status_code, 200)
         by_code = {item["code"]: item for item in response.json()}
         self.assertEqual(by_code["en"]["locale"], "en-US")
         self.assertEqual(by_code["ms"]["locale"], "ms-MY")
-
-    def test_capability_block_reports_prosody_per_locale(self):
-        response = self.client.get("/api/languages/")
-        by_code = {item["code"]: item for item in response.json()}
-
-        self.assertTrue(by_code["en"]["capabilities"]["prosody"])
-        self.assertFalse(by_code["ms"]["capabilities"]["prosody"])
-        self.assertNotIn(
-            "prosody", by_code["ms"]["capabilities"]["available_metrics"]
-        )
 
     def test_inactive_languages_are_hidden(self):
         Language.objects.filter(code="ms").update(is_active=False)

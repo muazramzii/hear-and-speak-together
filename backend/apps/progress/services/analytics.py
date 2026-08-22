@@ -8,7 +8,7 @@ check and a supervisor can defend.
 
 from datetime import timedelta
 
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Max
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
@@ -36,7 +36,7 @@ def _scored_attempts(profile):
     pronunciation ability and would drag every average down unfairly.
     """
     return PracticeAttempt.objects.filter(profile=profile).exclude(
-        pronunciation_score__isnull=True, accuracy_score__isnull=True
+        pronunciation_score__isnull=True
     )
 
 
@@ -312,5 +312,5 @@ def lesson_progress_list(profile):
 
 def has_perfect_score(profile, threshold=90):
     return _scored_attempts(profile).filter(
-        Q(pronunciation_score__gte=threshold) | Q(accuracy_score__gte=threshold)
+        pronunciation_score__gte=threshold
     ).exists()

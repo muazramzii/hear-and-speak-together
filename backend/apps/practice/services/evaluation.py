@@ -2,6 +2,15 @@
 
 Kept out of the view so the whole flow can be tested without HTTP, and so the
 view stays a thin translation layer between the request and this service.
+
+The pipeline is recognition, then scoring, as two separate stages:
+
+    audio -> SpeechRecognitionService -> transcript -> PronunciationEngine -> score
+
+Whisper only ever answers "what did the model think was said"; the
+pronunciation engine is the only thing that decides how well it was said.
+Conflating the two - scoring directly off whatever a transcription service
+returns - was the failure mode this split exists to avoid.
 """
 
 import logging
@@ -14,47 +23,57 @@ from apps.practice.models import PracticeAttempt
 from . import feedback as feedback_engine
 from .ai.base import FeedbackContext
 from .base import AssessmentError, NoSpeechDetected
+from .pronunciation.engine import PronunciationEngine
 
 logger = logging.getLogger(__name__)
 
+_SUPPORTED_LANGUAGES = {"en", "ms"}
+
 
 class PracticeEvaluationService:
-    def __init__(self, assessment_service, ai_service=None):
-        self._assessor = assessment_service
+    def __init__(self, recognition_service, ai_service=None, engine=None):
+        self._recognizer = recognition_service
+        self._engine = engine or PronunciationEngine()
         # Optional by design. None means deterministic feedback only, which is
         # the default and costs nothing.
         self._ai = ai_service
 
     def evaluate(self, *, profile, word, audio_file):
-        """Assess a recording, persist the attempt, and update the learner.
+        """Recognise a recording, score it, persist the attempt, and update
+        the learner.
 
-        Returns `(attempt, result)`. `result` is None when nothing intelligible
-        was heard - that still produces a stored attempt, because "the child
-        tried and we could not hear them" is real information for a parent.
+        Returns `(attempt, result)`. `result` is None when nothing
+        intelligible was heard - that still produces a stored attempt,
+        because "the child tried and we could not hear them" is real
+        information for a parent.
         """
         language = word.lesson.category.language
 
         self._guard_language(language)
 
         try:
-            result = self._assessor.assess(
-                audio=audio_file,
-                reference_text=word.text,
-                language_code=language.code,
-                locale=language.locale,
-                # Decided from the verified capability flag, never guessed.
-                enable_prosody=language.supports_prosody,
+            recognition = self._recognizer.transcribe(
+                audio=audio_file, language_code=language.code
             )
         except NoSpeechDetected:
             attempt = self._record_no_speech(profile, word, language)
             return attempt, None
 
+        result = self._engine.evaluate(
+            reference_text=word.text,
+            recognized_text=recognition.text,
+            confidence=recognition.confidence,
+            language_code=language.code,
+        )
+
         # Deterministic feedback is always computed first, so an AI provider
         # that is slow, down or misconfigured simply leaves it in place.
-        # Deliberately outside the write transaction below: a network call must
-        # never hold a database lock open.
-        feedback_text = feedback_engine.build_feedback(result)
-        ai_text = self._ai_feedback(result)
+        # Deliberately outside the write transaction below: a network call
+        # must never hold a database lock open.
+        feedback_text = feedback_engine.build_feedback(
+            result.pronunciation_score, language.code
+        )
+        ai_text = self._ai_feedback(result, language)
         if ai_text:
             feedback_text = ai_text
 
@@ -71,41 +90,38 @@ class PracticeEvaluationService:
     # -- internals --------------------------------------------------------
 
     def _guard_language(self, language):
-        if not language.supports_pronunciation_assessment:
+        if language.code not in _SUPPORTED_LANGUAGES:
             raise AssessmentError(
                 user_message="Speaking practice is not available for this language yet.",
                 detail=(
-                    f"Language {language.locale} is not marked as supporting "
-                    f"pronunciation assessment"
+                    f"No G2P/recognition support for language {language.code!r}"
                 ),
                 retryable=False,
             )
 
-    def _ai_feedback(self, result):
+    def _ai_feedback(self, result, language):
         """Ask the LLM to rephrase the deterministic message.
 
         Returns None on every failure path, so the caller keeps the
         deterministic sentence. The LLM never sees or influences the score -
-        it only receives the numbers Azure already produced.
+        it only receives the numbers the engine already produced.
         """
         if self._ai is None:
             return None
-
-        score = result.display_score
-        if score is None:
-            return None  # nothing was heard; there is nothing to encourage
 
         try:
             return self._ai.generate_feedback(
                 FeedbackContext(
                     target_word=result.reference_text,
                     language_code=result.language_code,
-                    locale=result.locale,
+                    locale=language.locale,
                     recognized_text=result.recognized_text,
-                    score=score,
-                    accuracy_score=result.accuracy_score,
-                    fluency_score=result.fluency_score,
-                    error_type=result.error_type,
+                    score=result.pronunciation_score,
+                    similarity_score=result.similarity_score,
+                    confidence_score=result.confidence_score,
+                    error_type=(
+                        result.errors[0].type if result.errors else None
+                    ),
                 )
             )
         except Exception:
@@ -116,8 +132,7 @@ class PracticeEvaluationService:
 
     @transaction.atomic
     def _record(self, profile, word, language, result, audio_file, feedback_text):
-        score = result.display_score
-        points = feedback_engine.points_for_score(score)
+        points = feedback_engine.points_for_score(result.pronunciation_score)
 
         attempt = PracticeAttempt.objects.create(
             profile=profile,
@@ -126,13 +141,11 @@ class PracticeEvaluationService:
             locale=language.locale,
             reference_text=result.reference_text,
             recognized_text=result.recognized_text,
-            accuracy_score=result.accuracy_score,
-            fluency_score=result.fluency_score,
-            pronunciation_score=result.pronunciation_score,
+            similarity_score=result.similarity_score,
+            confidence_score=result.confidence_score,
             completeness_score=result.completeness_score,
-            # Stays None for locales without prosody support.
-            prosody_score=result.prosody_score,
-            error_type=result.error_type or "",
+            pronunciation_score=result.pronunciation_score,
+            errors=[error.to_dict() for error in result.errors],
             feedback=feedback_text,
             points_awarded=points,
         )

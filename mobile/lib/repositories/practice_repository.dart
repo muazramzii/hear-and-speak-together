@@ -12,8 +12,9 @@ class PracticeRepository {
 
   /// Uploads one recording for assessment.
   ///
-  /// Azure credentials never leave the server, so the audio goes to Django and
-  /// Django talks to Azure. The app never holds a speech key.
+  /// Recognition and scoring both happen server-side - the app only ever
+  /// sends the recording and receives a result. It never talks to a speech
+  /// provider directly and holds no speech-related credentials.
   Future<PracticeResult> evaluate({
     required int wordId,
     required int profileId,

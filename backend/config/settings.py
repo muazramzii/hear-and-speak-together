@@ -212,21 +212,35 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
 
 # ---------------------------------------------------------------------------
-# Speech / AI configuration (consumed from Phase 3 onwards).
-# Read here so credentials stay server-side and stay out of the mobile app.
+# Speech recognition + pronunciation scoring.
+#
+# Recognition (Whisper, self-hosted) only ever answers "what was said" - it
+# never produces a score. Scoring is entirely local, deterministic Python
+# (apps/practice/services/pronunciation) run against the transcript. No
+# speech data or audio ever leaves the server; there is no paid API in this
+# pipeline at all.
 # ---------------------------------------------------------------------------
-AZURE_SPEECH_KEY = env_str("AZURE_SPEECH_KEY", default="")
-AZURE_SPEECH_REGION = env_str("AZURE_SPEECH_REGION", default="")
 
-# Which pronunciation assessment implementation to use: "azure" or "mock".
-# Defaults to mock so a fresh checkout, and the entire test suite, never
-# spends money or needs a key.
+# Which recognition implementation to use: "whisper" or "mock". Defaults to
+# mock so a fresh checkout, and the entire test suite, never needs to load a
+# model or spend time transcribing audio.
 SPEECH_PROVIDER = env_str("SPEECH_PROVIDER", default="mock")
 
-# SpeechAce is an alternative acoustic assessor with a free trial tier. It
-# covers en/fr/es only - not Malay - so it is selected per language via
-# Language.assessment_provider rather than globally.
-SPEECHACE_API_KEY = env_str("SPEECHACE_API_KEY", default="")
+# faster-whisper model settings. "base" is the smallest model that gives
+# usable accuracy for short, single-word clips and is fast enough on CPU;
+# raise to "small"/"medium" for better accuracy once the larger weights are
+# cached, at the cost of a slower first download and slower inference.
+WHISPER_MODEL_SIZE = env_str("WHISPER_MODEL_SIZE", default="base")
+WHISPER_DEVICE = env_str("WHISPER_DEVICE", default="cpu")
+WHISPER_COMPUTE_TYPE = env_str("WHISPER_COMPUTE_TYPE", default="int8")
+
+# Weights for the final pronunciation score. Must sum to 1.0.
+# final = similarity * SIMILARITY + confidence * CONFIDENCE + completeness * COMPLETENESS
+PRONUNCIATION_SCORE_WEIGHTS = {
+    "similarity": float(env_str("PRONUNCIATION_WEIGHT_SIMILARITY", default="0.5")),
+    "confidence": float(env_str("PRONUNCIATION_WEIGHT_CONFIDENCE", default="0.3")),
+    "completeness": float(env_str("PRONUNCIATION_WEIGHT_COMPLETENESS", default="0.2")),
+}
 
 AI_PROVIDER = env_str("AI_PROVIDER", default="mock")
 AI_API_KEY = env_str("AI_API_KEY", default="")
