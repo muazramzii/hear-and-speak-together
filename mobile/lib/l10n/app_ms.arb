@@ -195,6 +195,7 @@
   },
   "homeStartStreak": "Berlatih hari ini untuk mula streak.",
   "homeSwitchProfile": "Tukar profil",
+  "homeContinueLearning": "Teruskan Belajar",
   "lessonsTitle": "Pelajaran",
   "lessonsWordCount": "{count} perkataan",
   "@lessonsWordCount": {
@@ -205,6 +206,11 @@
     }
   },
   "lessonsChoose": "Pilih pelajaran",
+  "journeyTitle": "Perjalanan Pembelajaran Anda",
+  "journeyMascotPrompt": "Pilih pelajaran untuk teruskan!",
+  "journeyLocked": "Dikunci",
+  "journeyLockedHint": "Selesaikan pelajaran sebelum ini untuk membuka kunci",
+  "journeyCompleted": "Selesai!",
   "progressTitle": "Kemajuan",
   "progressAverageScore": "Skor Purata",
   "progressWordsLearned": "Perkataan Dipelajari",

@@ -4,13 +4,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../design_system/design_system.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../repositories/content_repository.dart';
 import '../../repositories/profile_repository.dart';
 import '../../routes/app_router.dart';
 
-/// The learner's home: greeting, points, and the four learning modes.
+/// The learner's home: a hero greeting with the mascot, streak progress, and
+/// the four learning modes - visually first, per the Phase 3 brief, rather
+/// than a settings-style list of links.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -27,23 +30,7 @@ class HomeScreen extends ConsumerWidget {
     final lessons = ref.watch(lessonsForLanguageProvider(profile.languageCode));
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(l10n.homeGreeting(profile.name)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: Chip(
-              avatar: const Icon(
-                Icons.star_rounded,
-                color: AppColors.amber,
-                size: 18,
-              ),
-              label: Text('${profile.points}'),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -53,13 +40,12 @@ class HomeScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    l10n.homeSubtitle,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  _HeroGreetingCard(
+                    name: profile.name,
+                    points: profile.points,
+                    streakDays: profile.streakDays,
+                    greeting: l10n.homeGreeting(profile.name),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  _StreakCard(streakDays: profile.streakDays),
                   const SizedBox(height: AppSpacing.lg),
 
                   // Only parents and teachers can monitor learners, so the
@@ -93,19 +79,45 @@ class HomeScreen extends ConsumerWidget {
                         (items) =>
                             items.isEmpty
                                 ? const _EmptyLessons()
-                                : _ModeGrid(languageCode: profile.languageCode),
+                                : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    AppPrimaryButton(
+                                      label: l10n.homeContinueLearning,
+                                      icon: Icons.map_rounded,
+                                      onPressed:
+                                          () => context.pushNamed(
+                                            AppRoutes.learnLessonsName,
+                                            queryParameters: {
+                                              'lang': profile.languageCode,
+                                            },
+                                          ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.lg),
+                                    _ModeGrid(
+                                      languageCode: profile.languageCode,
+                                    ),
+                                  ],
+                                ),
                   ),
 
                   const SizedBox(height: AppSpacing.xl),
-                  TextButton.icon(
-                    onPressed: () => context.goNamed(AppRoutes.profilesName),
-                    icon: const Icon(Icons.switch_account_rounded),
-                    label: Text(l10n.profileChooseTitle),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _confirmSignOut(context, ref),
-                    icon: const Icon(Icons.logout_rounded),
-                    label: Text(l10n.authSignOut),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed:
+                            () => context.goNamed(AppRoutes.profilesName),
+                        icon: const Icon(Icons.switch_account_rounded),
+                        label: Text(l10n.profileChooseTitle),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _confirmSignOut(context, ref),
+                        icon: const Icon(Icons.logout_rounded),
+                        label: Text(l10n.authSignOut),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -144,6 +156,120 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+/// The hero card: mascot, greeting, points, and a streak bar. Replaces the
+/// old plain `_StreakCard` - and, along the way, wires the streak copy
+/// through `l10n` properly. The previous version had matching ARB entries
+/// (`homeKeepGoing`, `homeReadyToStart`, `homeStartStreak`) that were never
+/// actually used; the English literals it printed instead meant a Malay
+/// learner saw English text on this one card, silently.
+class _HeroGreetingCard extends StatelessWidget {
+  const _HeroGreetingCard({
+    required this.name,
+    required this.points,
+    required this.streakDays,
+    required this.greeting,
+  });
+
+  final String name;
+  final int points;
+  final int streakDays;
+  final String greeting;
+
+  /// A streak "fills up" toward the next 7-day milestone - purely a visual
+  /// device for the XP bar, not a value the backend tracks.
+  double get _streakFraction => (streakDays % 7) / 7;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final hasStreak = streakDays > 0;
+
+    return AppGradientCard(
+      gradient: AppGradients.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: AppTypography.celebration.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      hasStreak ? l10n.homeKeepGoing : l10n.homeReadyToStart,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Mascot(
+                mood: hasStreak ? MascotMood.happy : MascotMood.idle,
+                size: 72,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          Row(
+            children: [
+              const Icon(
+                Icons.local_fire_department_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  hasStreak
+                      ? l10n.homeStreakDays(streakDays)
+                      : l10n.homeStartStreak,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$points',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (hasStreak) ...[
+            const SizedBox(height: AppSpacing.sm),
+            XpBar(
+              value: _streakFraction == 0 ? 1.0 : _streakFraction,
+              color: Colors.white,
+              trackColor: Colors.white.withValues(alpha: 0.25),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SupervisorCard extends StatelessWidget {
   const _SupervisorCard();
 
@@ -151,82 +277,32 @@ class _SupervisorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Material(
+    return AppCard(
       color: AppColors.blueSoft,
-      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      child: InkWell(
-        onTap: () => context.pushNamed(AppRoutes.studentsName),
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              const Icon(Icons.groups_rounded, color: AppColors.blue, size: 32),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.supervisorSectionTitle,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      l10n.supervisorSectionBody,
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StreakCard extends StatelessWidget {
-  const _StreakCard({required this.streakDays});
-
-  final int streakDays;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.amberSoft,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      ),
+      onTap: () => context.pushNamed(AppRoutes.studentsName),
       child: Row(
         children: [
-          const Text('🐘', style: TextStyle(fontSize: 40)),
+          const Icon(Icons.groups_rounded, color: AppColors.blue, size: 32),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  streakDays > 0
-                      ? 'Keep up the great work!'
-                      : 'Ready to start?',
+                  l10n.supervisorSectionTitle,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  streakDays > 0
-                      ? '🔥 $streakDays day streak'
-                      : 'Practise today to start a streak.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  l10n.supervisorSectionBody,
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ],
             ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
           ),
         ],
       ),
@@ -273,32 +349,28 @@ class _ModeGrid extends StatelessWidget {
           title: l10n.modeLearn,
           subtitle: l10n.modeLearnSubtitle,
           icon: Icons.menu_book_rounded,
-          tint: AppColors.amberSoft,
-          accent: AppColors.amber,
+          gradient: AppGradients.warm,
           onTap: () => _pickLesson(context, null),
         ),
         _ModeCard(
           title: l10n.modeListen,
           subtitle: l10n.modeListenSubtitle,
           icon: Icons.headphones_rounded,
-          tint: AppColors.blueSoft,
-          accent: AppColors.blue,
+          gradient: AppGradients.sky,
           onTap: () => _pickLesson(context, 'listen'),
         ),
         _ModeCard(
           title: l10n.modeSpeak,
           subtitle: l10n.modeSpeakSubtitle,
           icon: Icons.mic_rounded,
-          tint: AppColors.greenSoft,
-          accent: AppColors.green,
+          gradient: AppGradients.success,
           onTap: () => _pickLesson(context, 'speak'),
         ),
         _ModeCard(
           title: l10n.modeQuiz,
           subtitle: l10n.modeQuizSubtitle,
           icon: Icons.help_outline_rounded,
-          tint: AppColors.violetSoft,
-          accent: AppColors.primary,
+          gradient: AppGradients.primary,
           onTap: () => _pickLesson(context, 'quiz'),
         ),
       ],
@@ -311,52 +383,47 @@ class _ModeCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.tint,
-    required this.accent,
+    required this.gradient,
     required this.onTap,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color tint;
-  final Color accent;
+  final Gradient gradient;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: tint,
-      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
+    return AppCard(
+      color: AppColors.surface,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(
+              icon,
+              color: AppA11y.textColorFor(gradient.colors.last),
+            ),
+          ),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSpacing.sm + 4),
-                ),
-                child: Icon(icon, color: accent),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
-                ],
-              ),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -367,14 +434,11 @@ class _EmptyLessons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Text(
-          'No lessons available for this language yet.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+    return AppCard(
+      child: Text(
+        context.l10n.errorNoLessons,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium,
       ),
     );
   }
@@ -388,23 +452,21 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(
-              onPressed: onRetry,
-              child: Text(context.l10n.actionTryAgain),
-            ),
-          ],
-        ),
+    return AppCard(
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppSecondaryButton(
+            label: context.l10n.actionTryAgain,
+            onPressed: onRetry,
+            expand: false,
+          ),
+        ],
       ),
     );
   }

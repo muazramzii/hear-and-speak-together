@@ -5,15 +5,18 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/audio/audio_recorder.dart';
 import '../../core/audio/word_speaker.dart';
 import '../../core/theme/app_theme.dart';
+import '../../design_system/design_system.dart';
 import '../../l10n/l10n.dart';
 import '../../models/content.dart';
 import '../../models/practice_result.dart';
 import '../../providers/practice_provider.dart';
 import '../../repositories/profile_repository.dart';
 import '../../widgets/word_visual.dart';
-import 'widgets/score_gauge.dart';
 
-/// The Speak (AI) screen: hear the word, say it, get scored.
+/// The Speak (AI) screen: hear the word, say it, get scored - and the
+/// Pronunciation Result view once it is. Both live in this one screen
+/// because the result is shown in place, right where the recording
+/// happened, rather than as a separate pushed route.
 ///
 /// Every stage is announced in text as well as through animation. This is a
 /// speech app used by children who may have hearing difficulty, so state must
@@ -42,6 +45,7 @@ class PracticeScreen extends ConsumerWidget {
     final profile = ref.watch(activeProfileProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(context.l10n.speakTitle),
         actions: [
@@ -114,18 +118,22 @@ class _PromptView extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton.icon(
+            AppSecondaryButton(
+              label: context.l10n.learnListen,
+              icon: Icons.volume_up_rounded,
+              expand: false,
               onPressed:
                   state.isBusy
                       ? null
                       : () => ref
                           .read(wordSpeakerProvider)
                           .speak(word.text, languageCode: languageCode),
-              icon: const Icon(Icons.volume_up_rounded),
-              label: Text(context.l10n.learnListen),
             ),
             const SizedBox(width: AppSpacing.md),
-            OutlinedButton.icon(
+            AppSecondaryButton(
+              label: context.l10n.practiceSlowly,
+              icon: Icons.slow_motion_video_rounded,
+              expand: false,
               onPressed:
                   state.isBusy
                       ? null
@@ -136,8 +144,6 @@ class _PromptView extends ConsumerWidget {
                             languageCode: languageCode,
                             slow: true,
                           ),
-              icon: const Icon(Icons.slow_motion_video_rounded),
-              label: Text(context.l10n.practiceSlowly),
             ),
           ],
         ),
@@ -159,7 +165,7 @@ class _PromptView extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
         ],
 
-        _MicrophoneButton(
+        _HeroMicButton(
           stage: state.stage,
           onStart: controller.startRecording,
           onStop:
@@ -200,22 +206,31 @@ class _WordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppGradientCard(
+      gradient: AppGradients.primary,
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.violetSoft,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      ),
       child: Column(
         children: [
-          SizedBox(height: 140, child: WordVisual(word: word, size: 88)),
-          const SizedBox(height: AppSpacing.md),
+          Container(
+            height: 160,
+            width: 160,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: WordVisual(word: word, size: 88),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             word.text.toUpperCase(),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              color: AppColors.primary,
+            style: AppTypography.celebration.copyWith(
+              color: Colors.white,
               letterSpacing: 1.5,
+              fontSize: 30,
             ),
           ),
           if (word.meaning.isNotEmpty) ...[
@@ -223,7 +238,10 @@ class _WordCard extends StatelessWidget {
             Text(
               word.meaning,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ],
@@ -295,8 +313,12 @@ class _StageIndicator extends StatelessWidget {
   }
 }
 
-class _MicrophoneButton extends StatelessWidget {
-  const _MicrophoneButton({
+/// The hero microphone: the single biggest, most important tap target on
+/// the redesigned Speaking Practice screen. Idle and listening both carry a
+/// slow "breathing" ring animation - idle to invite the tap, listening to
+/// make the recording state impossible to miss even with the sound off.
+class _HeroMicButton extends StatefulWidget {
+  const _HeroMicButton({
     required this.stage,
     required this.onStart,
     required this.onStop,
@@ -307,9 +329,33 @@ class _MicrophoneButton extends StatelessWidget {
   final VoidCallback? onStop;
 
   @override
+  State<_HeroMicButton> createState() => _HeroMicButtonState();
+}
+
+class _HeroMicButtonState extends State<_HeroMicButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final listening = stage == PracticeStage.listening;
-    final processing = stage == PracticeStage.processing;
+    final listening = widget.stage == PracticeStage.listening;
+    final processing = widget.stage == PracticeStage.processing;
+    final gradient = listening ? AppGradients.warm : AppGradients.primary;
 
     return Column(
       children: [
@@ -320,27 +366,48 @@ class _MicrophoneButton extends StatelessWidget {
                   ? context.l10n.practiceStopRecording
                   : context.l10n.practiceStartRecording,
           child: GestureDetector(
-            onTap: processing ? null : (listening ? onStop : onStart),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: 96,
-              width: 96,
-              decoration: BoxDecoration(
-                color:
-                    processing
-                        ? AppColors.border
-                        : (listening ? AppColors.danger : AppColors.primary),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                listening ? Icons.stop_rounded : Icons.mic_rounded,
-                size: 44,
-                color: Colors.white,
+            onTap:
+                processing
+                    ? null
+                    : (listening ? widget.onStop : widget.onStart),
+            child: SizedBox(
+              height: 180,
+              width: 180,
+              child: AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (!processing)
+                        for (final ringDelay in [0.0, 0.5])
+                          _PulseRing(
+                            progress: (_pulse.value + ringDelay) % 1.0,
+                            color: gradient.colors.last,
+                            active: listening,
+                          ),
+                      child!,
+                    ],
+                  );
+                },
+                child: AppCircularButton(
+                  icon: listening ? Icons.stop_rounded : Icons.mic_rounded,
+                  diameter: 132,
+                  gradient: processing ? AppGradients.sky : gradient,
+                  onPressed:
+                      processing
+                          ? null
+                          : (listening ? widget.onStop : widget.onStart),
+                  semanticLabel:
+                      listening
+                          ? context.l10n.practiceStopRecording
+                          : context.l10n.practiceStartRecording,
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.md),
         Text(
           listening
               ? context.l10n.practiceTapToStop
@@ -348,6 +415,41 @@ class _MicrophoneButton extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
+    );
+  }
+}
+
+class _PulseRing extends StatelessWidget {
+  const _PulseRing({
+    required this.progress,
+    required this.color,
+    required this.active,
+  });
+
+  final double progress;
+  final Color color;
+
+  /// Idle still breathes gently (a much smaller amplitude) so the button
+  /// never looks static; listening breathes hard enough to read as "this is
+  /// live" even to a child not looking directly at it.
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxScale = active ? 1.6 : 1.15;
+    final scale = 1.0 + (maxScale - 1.0) * progress;
+    final opacity = (1 - progress) * (active ? 0.5 : 0.25);
+
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        height: 132,
+        width: 132,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withValues(alpha: opacity), width: 4),
+        ),
+      ),
     );
   }
 }
@@ -391,14 +493,14 @@ class _ErrorPanel extends StatelessWidget {
           if (permissionDenied)
             // Retrying is pointless once permission is denied - the fix lives
             // in system settings.
-            FilledButton(
+            AppPrimaryButton(
+              label: context.l10n.practiceOpenSettings,
               onPressed: openAppSettings,
-              child: Text(context.l10n.practiceOpenSettings),
             )
           else
-            FilledButton(
+            AppPrimaryButton(
+              label: context.l10n.actionTryAgain,
               onPressed: onRetry,
-              child: Text(context.l10n.actionTryAgain),
             ),
         ],
       ),
@@ -406,6 +508,10 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
+/// The Pronunciation Result: celebrates what went well rather than grading
+/// what didn't. Every score band gets a warm mascot reaction and the
+/// server's own encouraging, per-language feedback sentence - never a "you
+/// failed" red treatment, even for a low score.
 class _ResultView extends StatefulWidget {
   const _ResultView({
     required this.result,
@@ -422,72 +528,139 @@ class _ResultView extends StatefulWidget {
 }
 
 class _ResultViewState extends State<_ResultView> {
+  bool _celebrate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deferred one frame so the burst originates from an already-laid-out
+    // screen rather than competing with the first build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final score = widget.result.score;
+      if (score != null && score >= 75) {
+        setState(() => _celebrate = true);
+      }
+    });
+  }
+
+  MascotMood get _mood {
+    final score = widget.result.score;
+    if (!widget.result.heardSpeech) return MascotMood.thinking;
+    if (score == null) return MascotMood.thinking;
+    if (score >= 90) return MascotMood.excited;
+    if (score >= 75) return MascotMood.happy;
+    return MascotMood.encouraging;
+  }
+
+  Color get _ringColor {
+    final score = widget.result.score ?? 0;
+    if (score >= 90) return AppColors.greenStrong;
+    if (score >= 75) return AppColors.blueStrong;
+    if (score >= 50) return AppColors.amber;
+    return AppColors.primary;
+  }
+
   @override
   Widget build(BuildContext context) {
     final result = widget.result;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        if (!result.heardSpeech)
-          const Icon(
-            Icons.hearing_disabled_rounded,
-            size: 72,
-            color: AppColors.textSecondary,
-          )
-        else
-          Center(child: ScoreGauge(score: result.score ?? 0)),
-        const SizedBox(height: AppSpacing.lg),
-
-        if (result.heardSpeech) ...[
-          _DetailScores(result: result),
-          const SizedBox(height: AppSpacing.md),
-        ],
-
-        if (result.heardSpeech && result.recognizedText.isNotEmpty) ...[
-          Text(
-            context.l10n.practiceYouSaid('"${result.recognizedText}"'),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-
-        Text(
-          result.feedback,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        if (result.pointsAwarded > 0)
-          Center(
-            child: Chip(
-              avatar: const Icon(
-                Icons.star_rounded,
-                color: AppColors.amber,
-                size: 18,
-              ),
-              label: Text('+${result.pointsAwarded}'),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child:
+                  result.heardSpeech
+                      ? ProgressRing(
+                        value: (result.score ?? 0) / 100,
+                        color: _ringColor,
+                        child: Text(
+                          '${result.score ?? 0}',
+                          style: AppTypography.display.copyWith(
+                            color: _ringColor,
+                          ),
+                        ),
+                      )
+                      : Mascot(mood: _mood, size: 120),
             ),
-          ),
+            const SizedBox(height: AppSpacing.lg),
 
-        const SizedBox(height: AppSpacing.lg),
-        if (widget.onNextWord != null) ...[
-          FilledButton(
-            onPressed: widget.onNextWord,
-            child: Text(context.l10n.practiceNextWord),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton(
-            onPressed: widget.onTryAgain,
-            child: Text(context.l10n.actionTryAgain),
-          ),
-        ] else
-          FilledButton(
-            onPressed: widget.onTryAgain,
-            child: Text(context.l10n.actionTryAgain),
-          ),
+            if (result.heardSpeech) ...[
+              Center(child: Mascot(mood: _mood, size: 64)),
+              const SizedBox(height: AppSpacing.md),
+            ],
+
+            Center(child: MascotBubble(text: result.feedback)),
+            const SizedBox(height: AppSpacing.md),
+
+            if (result.heardSpeech && result.recognizedText.isNotEmpty) ...[
+              Text(
+                context.l10n.practiceYouSaid('"${result.recognizedText}"'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+
+            if (result.heardSpeech) ...[
+              _DetailScores(result: result),
+              const SizedBox(height: AppSpacing.md),
+            ],
+
+            if (result.pointsAwarded > 0)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        color: AppColors.amber,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+${result.pointsAwarded}',
+                        style: const TextStyle(
+                          color: AppColors.textOnAmber,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: AppSpacing.lg),
+            if (widget.onNextWord != null) ...[
+              AppPrimaryButton(
+                label: context.l10n.practiceNextWord,
+                icon: Icons.arrow_forward_rounded,
+                onPressed: widget.onNextWord,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppSecondaryButton(
+                label: context.l10n.actionTryAgain,
+                onPressed: widget.onTryAgain,
+              ),
+            ] else
+              AppPrimaryButton(
+                label: context.l10n.actionTryAgain,
+                onPressed: widget.onTryAgain,
+              ),
+          ],
+        ),
+        Positioned.fill(child: CelebrationBurst(active: _celebrate)),
       ],
     );
   }
@@ -504,38 +677,43 @@ class _DetailScores extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final rows = <(String, double?)>[
-      (l10n.metricSimilarity, result.similarity),
-      (l10n.metricConfidence, result.confidence),
-      (l10n.metricCompleteness, result.completeness),
+    final rows = <(String, double?, Color)>[
+      (l10n.metricSimilarity, result.similarity, AppColors.primary),
+      (l10n.metricConfidence, result.confidence, AppColors.blueStrong),
+      (l10n.metricCompleteness, result.completeness, AppColors.greenStrong),
     ];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          children: [
-            for (final (label, value) in rows)
-              if (value != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: Theme.of(context).textTheme.bodyMedium,
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          for (final (label, value, color) in rows)
+            if (value != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            label,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${value.round()}%',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
+                        Text(
+                          '${value.round()}%',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    XpBar(value: value / 100, color: color, height: 8),
+                  ],
                 ),
-          ],
-        ),
+              ),
+        ],
       ),
     );
   }

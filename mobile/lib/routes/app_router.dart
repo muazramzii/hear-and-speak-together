@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
+import '../features/dev/pronunciation_sandbox_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/learn/learn_screen.dart';
@@ -49,6 +50,9 @@ class AppRoutes {
   static const String register = '/register';
   static const String profiles = '/profiles';
   static const String connection = '/connection';
+  // Phase 2: developer-only AI validation tool, not part of the child-facing
+  // flow. Gated server-side on `is_staff`, same as the endpoints it calls.
+  static const String pronunciationSandbox = '/dev/pronunciation-sandbox';
 
   // Bottom-navigation branches.
   static const String home = '/home';
@@ -75,6 +79,7 @@ class AppRoutes {
   static const String registerName = 'register';
   static const String profilesName = 'profiles';
   static const String connectionName = 'connection';
+  static const String pronunciationSandboxName = 'pronunciation-sandbox';
   static const String homeName = 'home';
   static const String progressName = 'progress';
   static const String rewardsName = 'rewards';
@@ -268,13 +273,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.connectionName,
         builder: (context, state) => const ConnectionScreen(),
       ),
+      GoRoute(
+        // Phase 2 AI validation sandbox - a developer aid, gated server-side
+        // on `is_staff`. See PronunciationSandboxScreen's docstring.
+        path: AppRoutes.pronunciationSandbox,
+        name: AppRoutes.pronunciationSandboxName,
+        builder: (context, state) => const PronunciationSandboxScreen(),
+      ),
     ],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final location = state.matchedLocation;
 
-      // The diagnostics screen is always reachable.
-      if (location == AppRoutes.connection) return null;
+      // The diagnostics screen and the dev sandbox are always reachable.
+      if (location == AppRoutes.connection ||
+          location == AppRoutes.pronunciationSandbox) {
+        return null;
+      }
 
       // Still restoring a stored session - hold on the splash screen rather
       // than flashing the sign-in form at an already-signed-in user.
