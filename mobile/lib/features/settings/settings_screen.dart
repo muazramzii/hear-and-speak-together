@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,6 +83,20 @@ class SettingsScreen extends ConsumerWidget {
                   icon: const Icon(Icons.logout_rounded),
                   label: Text(l10n.authSignOut),
                 ),
+
+                // Debug-build only: a developer needs a way to find the
+                // Phase 2 AI validation sandbox without typing the route by
+                // hand. Never compiled into a release build.
+                if (kDebugMode) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  OutlinedButton.icon(
+                    onPressed:
+                        () =>
+                            context.goNamed(AppRoutes.pronunciationSandboxName),
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Pronunciation Sandbox (dev)'),
+                  ),
+                ],
               ],
             ),
           ),

@@ -195,6 +195,7 @@
   },
   "homeStartStreak": "Practise today to start a streak.",
   "homeSwitchProfile": "Switch profile",
+  "homeContinueLearning": "Continue Learning",
   "lessonsTitle": "Lessons",
   "lessonsWordCount": "{count} words",
   "@lessonsWordCount": {
@@ -205,6 +206,11 @@
     }
   },
   "lessonsChoose": "Choose a lesson",
+  "journeyTitle": "Your Learning Journey",
+  "journeyMascotPrompt": "Pick a lesson to continue!",
+  "journeyLocked": "Locked",
+  "journeyLockedHint": "Complete the previous lesson to unlock",
+  "journeyCompleted": "Completed!",
   "progressTitle": "Progress",
   "progressAverageScore": "Average Score",
   "progressWordsLearned": "Words Learned",

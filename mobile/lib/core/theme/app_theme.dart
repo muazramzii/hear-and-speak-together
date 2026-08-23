@@ -33,12 +33,38 @@ class AppColors {
   static const Color violetSoft = Color(0xFFF0E9FF);
   static const Color pinkSoft = Color(0xFFFDE8F2);
 
+  // ---- "Strong" accents: darkened in HSL space (hue/saturation held fixed)
+  // until white text on top clears WCAG AA for normal-size text (4.5:1).
+  // The plain accents above only clear the *large-text* threshold (3:1) with
+  // white on top - fine for icons or an 18pt+ headline, not for a button
+  // label or chip text at body size. Use these instead wherever white text
+  // sits on the fill at normal sizes. (Amber and warning are deliberately
+  // excluded - see `textOnAmber` below.)
+  static const Color greenStrong = Color(0xFF2B8748);
+  static const Color coralStrong = Color(0xFFE91F1F);
+  static const Color pinkStrong = Color(0xFFE2187E);
+  static const Color blueStrong = Color(0xFF3270EB);
+
   // ---- Neutrals ----
   static const Color surface = Color(0xFFFFFFFF);
   static const Color background = Color(0xFFF8F7FC);
   static const Color border = Color(0xFFE4E6EF);
   static const Color textPrimary = Color(0xFF1F2233);
-  static const Color textSecondary = Color(0xFF7A7F8C);
+
+  // Darkened from the original 0xFF7A7F8C, which measured 3.76:1 on
+  // `background` and 4.01:1 on `surface` - short of WCAG AA's 4.5:1 for
+  // normal-size text despite looking fine at a glance. This value clears
+  // 4.5:1 against both. See docs/design-system.md.
+  static const Color textSecondary = Color(0xFF6D727F);
+
+  /// Amber and its darker `warning` twin cannot be darkened enough to carry
+  /// white text (4.5:1) without turning muddy brown and losing the colour
+  /// entirely - unlike green/coral/pink/blue above, where a "strong"
+  /// variant stays recognisably the same hue. Dark text is the only correct
+  /// choice on either, always - measured at 9.6:1 and 7.1:1 respectively,
+  /// comfortably clearing AA. There is no "textOnAmber" constant to darken
+  /// instead; use `textPrimary` directly.
+  static const Color textOnAmber = textPrimary;
 }
 
 /// Consistent spacing so screens do not drift apart visually.
