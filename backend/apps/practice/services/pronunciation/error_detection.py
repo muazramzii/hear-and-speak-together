@@ -9,10 +9,14 @@ No phoneme analysis is invented beyond that.
 from dataclasses import dataclass
 
 _VOWEL_SYMBOLS = {
-    # English (see g2p_english.py's ARPAbet table)
+    # English (see g2p_english.py's ARPAbet table). Diphthongs are single
+    # units here because g2p_en/ARPAbet represents them that way.
     "ɑ", "æ", "ʌ", "ɔ", "aʊ", "aɪ", "ɛ", "ɝ", "ɚ", "eɪ", "ɪ", "i",
     "oʊ", "ɔɪ", "ʊ", "u", "ə",
-    # Malay (see g2p_malay.py)
+    # Malay (see g2p_malay.py, Epitran msa-Latn). "i" and "u" above are
+    # shared with English. Epitran decomposes Malay diphthongs into a vowel
+    # plus a glide ("pandai" -> ...a j) rather than a single diphthong
+    # symbol, so no Malay-specific diphthong entries are needed here.
     "a", "e", "o",
 }
 

@@ -25,6 +25,7 @@ from .services.base import AssessmentError, NoSpeechDetected
 from .services.evaluation import PracticeEvaluationService
 from .services.factory import get_recognition_service
 from .services.pronunciation.engine import PronunciationEngine
+from .services.recognition.confidence import ConfidenceNormalizer
 from .services.recognition.mock_service import MockSpeechRecognitionService
 from .services.recognition.whisper_service import WhisperSpeechRecognitionService
 
@@ -60,6 +61,53 @@ class RecognitionMockTests(TestCase):
 
         with self.assertRaises(NoSpeechDetected):
             service.transcribe(audio=io.BytesIO(b"x"), language_code="en")
+
+
+class ConfidenceNormalizerTests(TestCase):
+    """Whisper's raw `avg_logprob` reads as "not very confident" on almost
+    every real attempt (see the module docstring in confidence.py) unless
+    it is rescaled. These tests pin the rescale's boundary behaviour rather
+    than its exact numbers, so the bounds can be retuned later without
+    rewriting the tests."""
+
+    def test_empty_input_is_zero(self):
+        self.assertEqual(ConfidenceNormalizer.normalize([]), 0.0)
+
+    def test_the_lower_bound_maps_to_zero(self):
+        from math import log
+
+        raw = log(ConfidenceNormalizer.LOWER_BOUND)
+
+        self.assertEqual(ConfidenceNormalizer.normalize([raw]), 0.0)
+
+    def test_the_upper_bound_maps_to_one_hundred(self):
+        from math import log
+
+        raw = log(ConfidenceNormalizer.UPPER_BOUND)
+
+        self.assertEqual(ConfidenceNormalizer.normalize([raw]), 100.0)
+
+    def test_values_outside_the_band_clamp_rather_than_extrapolate(self):
+        # A near-certain segment (avg_logprob close to 0) must not score
+        # above 100, and a very unsure one must not go negative.
+        self.assertEqual(ConfidenceNormalizer.normalize([0.0]), 100.0)
+        self.assertEqual(ConfidenceNormalizer.normalize([-10.0]), 0.0)
+
+    def test_multiple_segments_are_averaged(self):
+        from math import log
+
+        low = log(ConfidenceNormalizer.LOWER_BOUND)
+        high = log(ConfidenceNormalizer.UPPER_BOUND)
+
+        self.assertAlmostEqual(
+            ConfidenceNormalizer.normalize([low, high]), 50.0, delta=0.5
+        )
+
+    def test_output_is_always_within_zero_to_one_hundred(self):
+        for raw in (-50.0, -5.0, -1.0, -0.1, 0.0):
+            score = ConfidenceNormalizer.normalize([raw])
+            self.assertGreaterEqual(score, 0.0)
+            self.assertLessEqual(score, 100.0)
 
 
 class FactoryTests(TestCase):

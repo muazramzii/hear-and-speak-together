@@ -14,6 +14,7 @@ returns - was the failure mode this split exists to avoid.
 """
 
 import logging
+import time
 
 from django.conf import settings
 from django.db import transaction
@@ -24,6 +25,7 @@ from . import feedback as feedback_engine
 from .ai.base import FeedbackContext
 from .base import AssessmentError, NoSpeechDetected
 from .pronunciation.engine import PronunciationEngine
+from .telemetry import log_processing_time, recording_duration_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,10 @@ class PracticeEvaluationService:
 
         self._guard_language(language)
 
+        total_start = time.perf_counter()
+        duration = recording_duration_seconds(audio_file)
+
+        whisper_start = time.perf_counter()
         try:
             recognition = self._recognizer.transcribe(
                 audio=audio_file, language_code=language.code
@@ -58,12 +64,28 @@ class PracticeEvaluationService:
         except NoSpeechDetected:
             attempt = self._record_no_speech(profile, word, language)
             return attempt, None
+        whisper_ms = round((time.perf_counter() - whisper_start) * 1000, 1)
 
+        phoneme_start = time.perf_counter()
         result = self._engine.evaluate(
             reference_text=word.text,
             recognized_text=recognition.text,
             confidence=recognition.confidence,
             language_code=language.code,
+        )
+        phoneme_ms = round((time.perf_counter() - phoneme_start) * 1000, 1)
+        total_ms = round((time.perf_counter() - total_start) * 1000, 1)
+
+        # Development-only diagnostics - never returned to the client, never
+        # stored on the attempt. See services/telemetry.py.
+        log_processing_time(
+            reference_text=word.text,
+            performance={
+                "recording_duration_seconds": duration,
+                "whisper_inference_ms": whisper_ms,
+                "phoneme_analysis_ms": phoneme_ms,
+                "total_processing_ms": total_ms,
+            },
         )
 
         # Deterministic feedback is always computed first, so an AI provider

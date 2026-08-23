@@ -1,10 +1,10 @@
 """Results from the Listen and Quiz modes.
 
 Kept separate from `PracticeAttempt`, which records a *spoken* attempt scored
-by Azure. A quiz round is a tap on a picture: no audio, no pronunciation
-score. Storing both in one table would mean a column that is meaningless for
-half the rows, and would corrupt the pronunciation averages the analytics are
-built on.
+by the pronunciation engine. A quiz round is a tap on a picture: no audio, no
+pronunciation score. Storing both in one table would mean a column that is
+meaningless for half the rows, and would corrupt the pronunciation averages
+the analytics are built on.
 """
 
 from django.db import models

@@ -1,6 +1,6 @@
 # Testing
 
-**333 tests** — 236 backend, 97 Flutter. All run offline, need no API key, and
+**364 tests** — 267 backend, 97 Flutter. All run offline, need no API key, and
 cost nothing.
 
 ```bash
@@ -46,7 +46,7 @@ asserts no prosody-shaped field exists on the engine's result at all.
 
 ## What is covered
 
-### Backend (236)
+### Backend (267)
 
 | Area | Examples |
 | --- | --- |
@@ -55,7 +55,10 @@ asserts no prosody-shaped field exists on the engine's result at all.
 | Content | Per-language filtering, quiz rounds |
 | Profiles | Ownership isolation, levelling, streaks |
 | Recognition | Mock service behaviour, silence handling, factory selection |
+| Confidence normalization | Boundary rescale behaviour, clamping, never returning a raw log-probability |
+| Bilingual G2P | Real output from both `g2p_en` (English) and Epitran `msa-Latn` (Malay), including Epitran's documented behavioural differences from the old hand-written Malay table |
 | Pronunciation engine | Scoring formula, error classification against the project's own worked examples, configurable weights, completeness capping |
+| Pronunciation sandbox | Staff-only access, full raw+normalised response shape, dataset consistency, dev-mode-only telemetry storage |
 | Practice | Evaluation flow, feedback bands, attempt history |
 | AI feedback | Every provider failure path |
 | Analytics | Weak words, category performance, lesson progress |
