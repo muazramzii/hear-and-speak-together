@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_theme.dart';
+import '../theme/theme.dart';
 
 /// A labelled text input sized for the whole app.
 ///
@@ -100,16 +100,16 @@ class AppErrorBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.danger.withValues(alpha: 0.08),
+        color: AppColors.error.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(
             Icons.error_outline_rounded,
-            color: AppColors.danger,
+            color: AppColors.error,
             size: 22,
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -118,7 +118,7 @@ class AppErrorBanner extends StatelessWidget {
               message,
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.danger),
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.error),
             ),
           ),
         ],

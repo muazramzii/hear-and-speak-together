@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_exception.dart';
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 import '../../l10n/l10n.dart';
 import '../../models/progress.dart';
 import '../../repositories/students_repository.dart';

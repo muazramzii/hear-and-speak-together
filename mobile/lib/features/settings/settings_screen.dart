@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -95,6 +95,13 @@ class SettingsScreen extends ConsumerWidget {
                             context.goNamed(AppRoutes.pronunciationSandboxName),
                     icon: const Icon(Icons.bug_report_outlined),
                     label: const Text('Pronunciation Sandbox (dev)'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed:
+                        () => context.goNamed(AppRoutes.componentShowcaseName),
+                    icon: const Icon(Icons.palette_outlined),
+                    label: const Text('Component Showcase (dev)'),
                   ),
                 ],
               ],

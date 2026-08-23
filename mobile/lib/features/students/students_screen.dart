@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 import '../../l10n/l10n.dart';
 import '../../repositories/students_repository.dart';
 import '../../routes/app_router.dart';
@@ -355,7 +355,7 @@ class _ErrorState extends StatelessWidget {
             const Icon(
               Icons.error_outline_rounded,
               size: 44,
-              color: AppColors.danger,
+              color: AppColors.error,
             ),
             const SizedBox(height: AppSpacing.md),
             Text(

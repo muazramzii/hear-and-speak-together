@@ -1,286 +1,287 @@
-# Phase 3 design system
+# Phase 3, Stage 1 — design system
 
-The Flutter design system behind the Phase 3 redesign: tokens, components,
-the accessibility work behind them, and how the four redesigned screens use
-them. This is a **frontend-only** phase - nothing here touches the backend,
-the API, or any database model.
+The Flutter design system: theme tokens, reusable components, the mascot
+placeholder system, and the Component Showcase screen used to review all of
+it. This is a **frontend-only** stage - nothing here touches the backend,
+the API, navigation architecture, or any database model, and no screen
+besides the developer-only showcase has been redesigned yet.
+
+This document replaces an earlier version written for a first pass at this
+stage; that pass's `lib/design_system/` package and `lib/core/theme/`
+location have been superseded by the structure below, per a more detailed
+Stage 1 specification. Nothing in the four screens touched during that first
+pass (Home, the lesson picker, Speaking Practice) has changed visually -
+this was a relocation and consolidation of the same tokens and components,
+not a redesign.
 
 ---
 
-## Where things live
-
-`AppColors` and `AppSpacing` (the two token classes that predate Phase 3)
-stay in [`core/theme/app_theme.dart`](../mobile/lib/core/theme/app_theme.dart)
-- every existing screen already imports them from there, and moving them
-would mean touching every file in the app for no visual benefit. Everything
-new for Phase 3 lives in
-[`lib/design_system/`](../mobile/lib/design_system/) instead, built on top
-of those existing tokens:
+## File structure
 
 ```
-lib/design_system/
-  tokens.dart               AppRadius, AppMotion, AppTypography, AppGradients, AppA11y
-  components/
-    buttons.dart             AppPrimaryButton, AppSecondaryButton, AppCircularButton
-    cards.dart                AppCard, AppGradientCard
-    progress.dart              ProgressRing, XpBar
-    mascot.dart                  Mascot, MascotBubble
-    celebration.dart              CelebrationBurst
-  design_system.dart        barrel export
+lib/theme/
+  colors.dart        AppColors, AppA11y (WCAG contrast helpers)
+  typography.dart     AppTypography (Display/H1/H2/H3/Body/Caption + extras), buildTextTheme()
+  spacing.dart          AppSpacing (the 8pt scale + t-shirt aliases)
+  radius.dart             AppRadius (Small/Medium/Large/XL/Full)
+  shadows.dart              AppShadows (small/medium/large/glow)
+  motion.dart                 AppMotion (durations + curves)
+  theme.dart                   AppGradients, AppTheme (assembles ThemeData) - barrel-exports the rest
+
+lib/widgets/
+  app_widgets.dart     barrel - one import for every component below
+  buttons/
+    button_base.dart    AppPressable (shared press-scale animation)
+    primary_button.dart AppPrimaryButton
+    secondary_button.dart AppSecondaryButton
+    outline_button.dart AppOutlineButton
+    icon_button.dart     AppIconButton
+    mic_button.dart      AppMicButton, AppMicButtonState
+  cards/
+    app_card.dart        AppCard (base)
+    hero_card.dart        HeroCard
+    lesson_card.dart       LessonCard
+    progress_card.dart      ProgressCard
+    achievement_card.dart    AchievementCard
+  progress/
+    circular_score.dart  CircularScore
+    linear_progress.dart  LinearProgressBar
+    xp_progress.dart       XpProgress
+    daily_goal_progress.dart DailyGoalProgress
+  mascot/
+    mascot.dart          Mascot, MascotState, MascotSpeechBubble
+    celebration_burst.dart CelebrationBurst
+
+lib/features/dev/component_showcase_screen.dart   ComponentShowcaseScreen
 ```
 
-Import `design_system/design_system.dart` for everything new; `AppColors` /
-`AppSpacing` still come from `core/theme/app_theme.dart` directly.
+Import `theme/theme.dart` for every token (it re-exports colors, typography,
+spacing, radius, shadows and motion) and `widgets/app_widgets.dart` for
+every component. Screens should never need a more specific import than
+those two.
 
 ---
 
 ## Colour palette
 
-The existing brand palette (violet primary, amber/blue/green/coral/pink
-accents) is unchanged in hue - Phase 3 is a presentation layer on top of it,
-not a rebrand. Two real, measured changes were made to it:
+Semantic tokens only - no screen should hold a raw `Color(0x...)`. The
+brand mood is deliberately three colours, not a rainbow: soft purple
+(primary), sky blue (secondary), warm yellow (accent).
 
-**`AppColors.textSecondary` was darkened**, from `0xFF7A7F8C` to
-`0xFF6D727F`. The original measured 3.76:1 against the app's background and
-4.01:1 against white - short of WCAG AA's 4.5:1 minimum for normal-size text,
-despite looking fine at a glance. This is a global fix: every screen using
-`textSecondary` (which is most of them, via `bodyMedium`/`labelSmall`) is now
-compliant, not just the four redesigned ones.
-
-**Four "strong" accent variants were added** - `greenStrong`, `coralStrong`,
-`pinkStrong`, `blueStrong`. The originals (`green`, `coral`, `pink`, `blue`)
-carry white text at only 3.0-3.24:1, which clears WCAG's *large-text*
-threshold but not the *normal-text* one (4.5:1) - fine for an icon, not for
-a button label or chip text at body size. Each "strong" variant is the same
-hue and saturation, darkened in HSL space until white text on top clears
-4.5:1 exactly:
-
-| Token | Value | Contrast vs. white |
+| Token | Value | Role |
 | --- | --- | --- |
-| `greenStrong` | `#2B8748` | 4.50 |
-| `coralStrong` | `#E91F1F` | 4.50 |
-| `pinkStrong` | `#E2187E` | 4.50 |
-| `blueStrong` | `#3270EB` | 4.50 |
+| `primary` / `primaryDark` | `#7C5CE0` / `#5F42B8` | Soft purple - the brand colour |
+| `secondary` / `secondaryDark` | `#5B8DEF` / `#3270EB` | Sky blue |
+| `accent` | `#F7C33F` | Warm yellow |
+| `background` | `#F8F7FC` | Scaffold background |
+| `surface` | `#FFFFFF` | Cards, sheets |
+| `surfaceVariant` | `#F3F1FA` | A second, light-violet surface tone for layering one card on another without a border |
+| `success` / `warning` / `error` | `#35A85A` / `#E8A020` / `#EF5F5F` | Status |
+| `textPrimary` / `textSecondary` | `#1F2233` / `#6D727F` | Text |
+| `border` | `#E4E6EF` | Dividers, outlines |
 
-**Amber and its `warning` twin are excluded from that treatment
-deliberately.** Both fail badly with white text (1.64:1 and 2.22:1), but
-darkening either enough to reach 4.5:1 turns it a muddy brown that no longer
-reads as "amber" - the darkening required is simply too large. Dark text
-(`AppColors.textPrimary`) is the only correct choice on amber, always, and
-already clears AA comfortably (9.6:1). There is a `textOnAmber` constant
-(= `textPrimary`) so this rule has a name to reach for instead of a fresh
-"white or dark?" judgement call each time.
+A wider set of "content-mode" accents (`amber`, `blue`, `green`, `coral`,
+`pink` - `amber`/`blue` are aliases of `accent`/`secondary`) exists
+separately for telling the four learning modes and similar content
+groupings apart; they are not part of the core brand mood and are never
+used for a plain UI action or status colour.
+
+**Two real, measured accessibility fixes carried over from the first Stage 1
+pass**, not just relocated: `textSecondary` was darkened from an original
+`#7A7F8C` (3.76-4.01:1 contrast, short of WCAG AA's 4.5:1) to `#6D727F`
+(clears 4.5:1 against both `background` and `surface`); and
+`successStrong`/`errorStrong`/`secondaryStrong`/a pink "strong" variant exist
+because their plain counterparts only clear the *large-text* WCAG threshold
+(3:1) with white text on top, not the *normal-text* one (4.5:1). `accent`
+and `warning` have no "strong" variant - darkening either enough to carry
+white text turns it muddy brown, so dark text (`textOnAccent`) is the only
+correct choice on them, always.
+
+`AppA11y` (`theme/colors.dart`) implements the WCAG luminance/contrast
+formulas directly, so a new colour pairing can be checked the same way
+these were derived, and `AppA11y.textColorFor(background)` picks a
+guaranteed-legible text colour for any caller-supplied background.
 
 ---
 
 ## Typography
 
-Nunito, unchanged - it was already the app's typeface via `google_fonts`
-before Phase 3 (`AppTheme._textTheme` in `app_theme.dart`). `AppTypography`
-adds the sizes that scale didn't have: `display` (56px/w800, the
-pronunciation-result hero number), `statNumber` (28px/w800), `celebration`
-(22px/w800, a short encouraging line), and `mascotSpeech` (16px/w700, always
-paired with `textPrimary` regardless of bubble colour).
+Nunito throughout, via `google_fonts`. `AppTypography` exposes the
+six-level hierarchy the stage asks for, plus a few extras kept from the
+first pass for the already-redesigned screens:
+
+| Style | Size / weight | Use |
+| --- | --- | --- |
+| `display` | 56 / w800 | A hero number (pronunciation score, XP total) |
+| `h1` | 32 / w800 | == Material `headlineLarge` |
+| `h2` | 26 / w800 | == Material `headlineMedium` |
+| `h3` | 20 / w700 | == Material `titleLarge` |
+| `body` | 16 / w600 | == Material `bodyLarge` |
+| `caption` | 13 / w600 | A short supporting line - distinct from Material's 12px `labelSmall`, which is for dense chip/tag text |
+| `statNumber` | 28 / w800 | A secondary figure next to a `display` number |
+| `celebration` | 22 / w800 | A short celebratory line under a hero number |
+| `mascotSpeech` | 16 / w700 | The mascot's speech-bubble line |
+
+`AppTypography.buildTextTheme()` produces the full 11-slot Material
+`TextTheme` every screen already reads via `Theme.of(context).textTheme` -
+unchanged in value from before this refactor.
 
 ---
 
-## Spacing, radius, motion
+## Spacing & radius
 
-`AppSpacing` (existing) is untouched. `AppRadius` is new and adds two steps
-the old scale didn't have (`xs`=8, `xl`=28) around the existing values
-(`sm`=12 ≈ old `chipRadius`'s corner case, `md`=16 = `buttonRadius`, `lg`=20 =
-`cardRadius`, `pill`=999 = `chipRadius`).
+`AppSpacing` is the 8pt scale in full - `space4` through `space40` - plus
+the t-shirt aliases (`xs`/`sm`/`md`/`lg`/`xl`) that were already threaded
+through every screen before this stage, kept at their exact original pixel
+values so relocating the file changed nothing visually.
 
-`AppMotion` names five durations (`instant` 100ms through `celebration`
-900ms) and four curves (`standard`, `emphasized`, `bouncy`, `gentle`), so
-every animated widget in the redesign picks from the same small set instead
-of inventing a new number. `bouncy` (`Curves.elasticOut`) is reserved for
-genuinely celebratory moments - the result score reveal - so it stays
-meaningful rather than becoming the default spring on everything.
+`AppRadius` is `small` (8) / `medium` (16) / `large` (20) / `xl` (28) /
+`full` (999), with `buttonRadius`/`cardRadius`/`chipRadius` aliases for the
+same continuity reason.
+
+---
+
+## Elevation
+
+`AppShadows` (`small`/`medium`/`large`/`glow(color)`) are low-opacity,
+large-blur, small-offset tints of `textPrimary` - never pure black, which
+reads harsher than intended at low opacity. `AppCard` uses `small` by
+default (just enough lift to separate from the background); `HeroCard` and
+the mic button use `glow` (a colour-matched shadow bleeding from the
+surface's own gradient) instead of a neutral one.
+
+---
+
+## Motion
+
+`AppMotion` durations: `instant` (100ms, a button press), `fast` (180ms, the
+default UI transition), `medium` (280ms, a card expanding or a lesson
+unlocking), `slow` (450ms, the mascot's idle loop or a progress fill),
+`celebration` (900ms, the result score reveal). Curves: `easeOut`
+(`Curves.easeOutCubic`, the default), `easeInOut`, `emphasized`
+(`Curves.easeOutBack`, a little overshoot for buttons/cards landing),
+`bouncy` (`Curves.elasticOut`, reserved for genuine celebration moments so
+it stays meaningful), `gentle` (the mascot's breathing loop).
 
 ---
 
 ## Components
 
-**`AppPrimaryButton` / `AppSecondaryButton`** replace `FilledButton` /
-`OutlinedButton` on the four redesigned screens (existing screens keep using
-Material's buttons via the app `ThemeData` - untouched). Both share a
-press-scale animation (`_PressableScale`, shrink to 96% on tap) instead of
-Material's ripple, and `AppPrimaryButton` picks its label colour
-automatically via `AppA11y.textColorFor` against its gradient's darkest stop,
-so a future palette change cannot silently drop a button's contrast below
-AA.
+**Buttons** - `AppPrimaryButton` (gradient fill, the one hero action per
+screen), `AppSecondaryButton` (flat solid fill in `secondaryStrong`, for an
+action that matters but shouldn't compete with the primary one),
+`AppOutlineButton` (border only, the lowest-emphasis tappable action),
+`AppIconButton` (icon-only, always at least `AppSpacing.minTapTarget`), and
+`AppMicButton` (the circular hero microphone). All four text buttons share
+one press-scale animation (`AppPressable`) instead of Material's ripple, and
+support `normal`/`pressed`/`disabled`/`loading` (a spinner replaces the
+label; `onPressed` is inert while loading so a slow request can't double-
+fire). `AppMicButton` owns its own idle/listening pulse-ring animation
+internally via `AppMicButtonState` (`normal`/`listening`/`loading`/
+`disabled`), so any screen that uses it gets the same motion for free -
+Speaking Practice's hero mic button is now a thin wrapper around it rather
+than a separate implementation.
 
-**`AppCircularButton`** is the base for the Speaking Practice hero
-microphone specifically - not a general-purpose icon button. The pulsing
-ring animation around it is built where it's used
-(`_HeroMicButton`/`_PulseRing` in `practice_screen.dart`), not baked into the
-component, since nothing else needs a "listening" pulse state.
+**Cards** - `AppCard` is the shared base (flat tint, soft resting shadow,
+borderless - the pre-refactor `CardThemeData` outlined every card in
+`AppColors.border`; this leans on shadow and spacing for separation
+instead). `HeroCard`, `LessonCard`, `ProgressCard` and `AchievementCard` all
+build on it or its visual language, so a lesson tile and an achievement
+badge read as the same design system rather than four unrelated widgets.
 
-**`AppCard` / `AppGradientCard`** are flat-tint and gradient rounded
-surfaces respectively, both borderless (the pre-Phase-3 `CardThemeData`
-outlines every card in `AppColors.border` - the redesign leans on colour and
-spacing for separation instead). `AppGradientCard` picks its own text/icon
-colour the same way `AppPrimaryButton` does.
+**Progress** - `CircularScore` (the pronunciation-score ring and any other
+circular percentage), `LinearProgressBar` (the pill-shaped base every other
+linear indicator builds on), `XpProgress` (a labelled, accent-coloured bar
+for streaks/XP), `DailyGoalProgress` (a small ring with a flag icon for
+"N of M practised today"). All animate to their target value rather than
+snapping.
 
-**`ProgressRing` / `XpBar`** are the circular and linear progress widgets -
-both animate to their target value (`TweenAnimationBuilder`) rather than
-snapping, and both take their content/colour from the caller rather than
-being hardcoded to a percentage label, so the same `ProgressRing` serves the
-pronunciation score, a lesson's completion ring, and (with a different
-child) nothing at all.
-
-**`CelebrationBurst`** is a one-shot confetti burst, built with a plain
-`CustomPainter` rather than a package dependency - this project has no
-animation-package dependency today, and a burst of ~28 falling rectangles
-does not need one. It plays once whenever its `active` flag flips to `true`
-and is reserved for scores of 75+ on the result screen; it is deliberately
-not shown for every attempt, so it stays meaningful for the ones that earn
-it, in keeping with "celebrate progress instead of grading."
+**Mascot** - see below.
 
 ---
 
-## The mascot
+## The mascot: a state-driven placeholder, not artwork
 
-**"Ellie" is built from emoji and motion, not a custom illustration asset.**
-This project has no illustration pipeline, and hand-drawn character art is
-out of scope for what can be produced and verified inside this phase -
-stated plainly here rather than presented as more than it is. 🐘 was chosen
-because it is already the app's elephant: "elephant"/"gajah" is seeded
-vocabulary in both languages, and the emoji already appeared on Home's old
-streak card before this redesign.
+Per this stage's explicit instruction, `Mascot` generates **no artwork**.
+It is built entirely around `MascotState` (`idle`, `happy`, `celebrate`,
+`thinking`, `encourage`): each state maps to a tinted circle, one icon from
+the app's single consistent icon family (Material Symbols - the same
+family used everywhere else in the app), and an idle-bob amplitude. This is
+a deliberate change from the first Stage 1 pass, which used the 🐘 emoji as
+the mascot's actual face - emoji are reserved for learning content under
+this stage's icon rule (achievement badges, word illustrations), not UI
+chrome like a mascot's expression, so that usage no longer fits.
 
-`Mascot` carries five moods (`idle`, `encouraging`, `happy`, `excited`,
-`thinking`), each with a different idle-bob amplitude and, for `happy`/
-`excited`, a small sparkle/confetti accessory emoji layered on top via
-`Stack` (there is no "elephant with sparkles" emoji, so the sparkle is
-composited separately). `MascotBubble` always renders `textPrimary` text
-regardless of its fill colour, so a bubble can never end up low-contrast by
-accident.
+**To swap in real artwork later**: everything placeholder-specific lives in
+`Mascot`'s private `_iconFor`/`_tintFor`/`_iconColorFor` methods
+(`widgets/mascot/mascot.dart`). Replacing their bodies with an
+`Image.asset`/Lottie/Rive lookup keyed on `state` is the only change
+needed - every caller passes a `MascotState` and reads nothing else, so no
+call site anywhere in the app needs to change when real art arrives.
 
-**On the result screen, the mascot's mood follows the score band but its
-tone never turns negative** - even the lowest band gets `encouraging`, never
-a disappointed or sad expression. This mirrors the backend's own
-deterministic feedback bands (`services/feedback.py`), which are
-encouraging at every level ("Let's practice together. You can do it!" is
-the *lowest* band's message, not a scolding one) - the redesign carries that
-tone through visually rather than undermining it with a sad mascot face.
-
----
-
-## Accessibility
-
-`AppA11y` (in `tokens.dart`) implements the WCAG relative-luminance and
-contrast-ratio formulas directly - `relativeLuminance(Color)`,
-`contrastRatio(Color, Color)` - rather than relying on a hardcoded table, so
-a *new* colour pairing introduced later can be checked programmatically the
-same way `textSecondary` and the "strong" accents were derived for this
-phase (see "Colour palette" above for the worked numbers).
-`AppA11y.textColorFor(background)` picks whichever of white or
-`textPrimary` clears the pairing better, and every component that renders on
-a caller-supplied colour (`AppPrimaryButton`, `AppGradientCard`,
-`AppCircularButton`, the mode-grid icon badges) calls it rather than
-hardcoding white.
-
-Beyond colour:
-
-- Every animated state change (button press, mic pulse, score reveal) is
-  paired with a text change already present from before Phase 3 - the
-  project's existing rule that "state must never be conveyed by sound or
-  motion alone" (see `practice_screen.dart`'s `_StageIndicator`) is
-  unchanged and still enforced.
-- Locked lesson nodes on the Learning Journey carry a `Semantics` label
-  explaining *why* they're locked (`journeyLockedHint`), not just that they
-  are.
-- `AppSpacing.minTapTarget` (56dp, already above Material's 48dp minimum)
-  is unchanged and still respected by every new interactive component.
+`MascotSpeechBubble` always renders `textPrimary` text regardless of its
+fill colour, so a bubble can never end up low-contrast by accident.
+`CelebrationBurst` (a one-shot confetti burst, plain `CustomPainter`, no
+package dependency) is reserved for genuinely celebratory moments - shown
+in the existing Result screen for scores of 75+, and demonstrated on demand
+in the Showcase.
 
 ---
 
-## The four redesigned screens
+## Icons
 
-**Home** ([`home_screen.dart`](../mobile/lib/features/home/home_screen.dart)) -
-a gradient hero card (`AppGradientCard` + `Mascot` + `XpBar`) replaces the
-old flat `_StreakCard`, which also fixes a real pre-existing bug: it printed
-hardcoded English strings ("Keep up the great work!", "Ready to start?",
-"Practise today to start a streak.") instead of the matching `l10n` getters
-that already existed for them (`homeKeepGoing`, `homeReadyToStart`,
-`homeStartStreak`) - a Malay learner was silently seeing English text on
-that one card. It's fixed now as part of rebuilding the card, not as a
-separate change. A new `AppPrimaryButton` ("Continue Learning") leads into
-the Journey; the four-mode grid keeps its exact functionality, restyled with
-gradient icon badges.
-
-**Learning Journey**
-([`lesson_list_screen.dart`](../mobile/lib/features/lessons/lesson_list_screen.dart)) -
-the lesson picker (`LessonListScreen` / `LearnLessonListScreen`), turned from
-a plain vertical list into a winding path of circular nodes, each showing a
-`ProgressRing` for that lesson's completion and a lock icon where
-applicable. Lock state is computed **client-side from data that already
-exists** - no backend change: a lesson is locked only if the previous one is
-incomplete *and* this one has never been opened, so nothing reachable before
-this redesign becomes unreachable now. The mascot stands next to whichever
-lesson is "next" with an encouraging prompt.
-
-**Speaking Practice** ([`practice_screen.dart`](../mobile/lib/features/practice/practice_screen.dart))
-- the hero interaction the brief calls for: a 132dp gradient microphone
-button with a "breathing" pulse ring at idle and a faster, larger pulse
-while listening (`_HeroMicButton`/`_PulseRing`), so the recording state
-reads clearly even without sound. The word card became an `AppGradientCard`
-with the illustration in a white circular frame. Every stage still
-announces itself in text exactly as before (`_StageIndicator` is otherwise
-unchanged) - the animation is additive, not a replacement for the
-accessible state announcement that already existed.
-
-**Pronunciation Result** (the same screen's result state, kept in place per
-the agreed direction rather than extracted into its own route) - the old
-`ScoreGauge` widget is replaced by the shared `ProgressRing`, colour-coded by
-band (green/blue/amber/violet - **never red**, so a low score never reads as
-a "failure" colour). The mascot's mood follows the same bands, and its
-speech bubble shows the backend's own localised feedback sentence directly
-(`result.feedback`) - no new strings were needed for this screen at all. A
-`CelebrationBurst` plays once for scores of 75+. The similarity/confidence/
-completeness breakdown now renders as three small `XpBar`s instead of plain
-text rows.
-
-`score_gauge.dart` (the old gauge widget) was deleted - `ProgressRing`
-supersedes it and nothing else referenced it.
+One family throughout: Material Symbols (`Icons.*`), already the only icon
+source used anywhere in the app. Emoji appear only inside learning content
+- a word's illustration fallback, a category's icon, an achievement badge's
+`emoji` field from seeded content - never as a stand-in for UI chrome. The
+mascot rewrite above is the one place this stage had to correct an existing
+violation of that rule.
 
 ---
 
-## New localisation keys
+## Component Showcase
 
-Six new keys, added to both `app_en.arb` and `app_ms.arb` with real Malay
-translations (not machine-translated placeholders): `homeContinueLearning`,
-`journeyTitle`, `journeyMascotPrompt`, `journeyLocked`, `journeyLockedHint`,
-`journeyCompleted`. Everything else reuses existing keys - the Speaking
-Practice screen in particular needed zero new copy, since the mascot's
-speech on the result screen reuses the backend's own already-localised
-feedback text rather than introducing parallel English-only mascot lines.
+[`features/dev/component_showcase_screen.dart`](../mobile/lib/features/dev/component_showcase_screen.dart)
+- a developer-only screen, not part of the child-facing flow and not linked
+from anywhere a child could reach (same convention as the Phase 2
+pronunciation sandbox: an always-reachable route plus a `kDebugMode`-gated
+entry point on Settings, never compiled into a release build). It renders
+every colour swatch (with its live-computed contrast ratio against white),
+every typography style, the spacing/radius scale, every button in every
+state, the mic button, every card, every progress indicator, all five
+mascot states, and an on-demand celebration burst - in one scrollable
+screen, so the whole system can be reviewed without touching a single
+child-facing screen.
+
+Reach it at `/dev/component-showcase`, or via Settings → "Component
+Showcase (dev)" in a debug build.
 
 ---
 
-## What this phase did not do (and why)
+## Quality checks
 
-- **No custom illustration assets.** Stated above under "The mascot" - this
-  project has no illustration pipeline. Large emoji, gradients, and motion
-  carry the "visual-first" requirement instead of hand-drawn art.
-- **No live visual screenshot verification of the four redesigned screens in
-  this session.** The in-app Browser pane could not composite frames for a
-  screenshot (`the Browser pane is not displayed`). A second attempt via a
-  separate real-Chrome browser integration did get one genuine screenshot -
-  the (unmodified) login screen, rendering correctly with the right font,
-  colours and layout, confirming the Flutter web build itself runs
-  correctly end to end against the live backend - but automated typing into
-  the login form was unreliable in that environment (text events were not
-  reaching the field's editing buffer, and the browser window kept resizing
-  between calls), so I could not get signed in to reach Home, the Journey,
-  Speaking Practice or the Result screen for a real look. Correctness was
-  verified through `flutter analyze` (clean) and the full `flutter test`
-  suite (97/97, no regressions) instead - but nobody has *looked* at these
-  four screens rendered yet. Run `flutter run` (see `docs/development.md`)
-  yourself to see the actual result before treating the direction as
-  approved - that review is what this stop-and-approve checkpoint is for.
-- **Nothing beyond these four screens.** Per the brief, Learn/Listen/Quiz
-  round screens, Progress, Rewards, Settings, auth and profile screens are
-  all untouched and still use the pre-Phase-3 Material theme directly.
+`flutter analyze`: clean. `flutter test`: 97/97, no regressions. Both the
+existing three redesigned screens (Home, the lesson picker, Speaking
+Practice/Result) and every other screen in the app were updated to import
+from the new `theme/`/`widgets/` locations - a mechanical relocation with
+old aliases kept wherever a value's name changed, specifically so this
+stage changed zero visual pixels outside of the mascot correction described
+above.
+
+---
+
+## What this stage did not do
+
+- **Home was not redesigned further.** Per the brief, this stage stopped at
+  the design system and the Showcase.
+- **No custom illustration assets** - unchanged from the first pass; this
+  project still has no illustration pipeline. The mascot is explicitly a
+  placeholder now, designed to be swapped rather than mistaken for final
+  art.
+- **No live visual screenshot verification in this session** - unchanged
+  limitation from the first Stage 1 pass (see git history for that
+  session's detailed account of the Browser-pane and browser-automation
+  constraints hit at the time). Verification here rests on `flutter
+  analyze`, the full `flutter test` suite, and manual review of every
+  widget tree. Run `flutter run` and open `/dev/component-showcase`
+  yourself to see the actual result before approving the direction.

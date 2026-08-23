@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_theme.dart';
+import '../theme/theme.dart';
 import '../models/content.dart';
 
 /// The picture for a word, with a defined fallback order.

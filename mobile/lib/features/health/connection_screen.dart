@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/network/api_exception.dart';
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 import '../../models/health_status.dart';
 import '../../repositories/health_repository.dart';
 
@@ -161,7 +161,7 @@ class _StatusBlock extends StatelessWidget {
   Color get _color => switch (tone) {
     _Tone.neutral => AppColors.textSecondary,
     _Tone.success => AppColors.success,
-    _Tone.error => AppColors.danger,
+    _Tone.error => AppColors.error,
   };
 
   @override

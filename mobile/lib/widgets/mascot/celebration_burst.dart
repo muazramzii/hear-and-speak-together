@@ -2,18 +2,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 
-/// A one-shot confetti burst for the pronunciation result screen - plays
-/// once whenever [active] flips from false to true, then stays finished
-/// until the next flip. Built with a plain [CustomPainter] rather than a
-/// package: this project has no animation-package dependency today, and a
-/// burst of falling rectangles does not need one.
+/// A one-shot confetti burst for a celebration moment (the pronunciation
+/// result screen, a lesson-completion moment) - plays once whenever
+/// [active] flips from false to true, then stays finished until the next
+/// flip. Built with a plain [CustomPainter] rather than a package: this
+/// project has no animation-package dependency today, and a burst of
+/// falling rectangles does not need one.
 ///
-/// Reserved for genuinely celebratory moments (a strong score) - see
-/// "celebrate progress instead of grading" in the Phase 3 brief. It is not
-/// used for every attempt, only ones worth celebrating; overuse would
-/// cheapen it for the attempts that actually earn it.
+/// Reserved for genuinely celebratory moments (a strong score, a completed
+/// lesson) - see "celebrate progress instead of grading". It is not used
+/// for every attempt, only ones worth celebrating; overuse would cheapen it
+/// for the attempts that actually earn it.
 class CelebrationBurst extends StatefulWidget {
   const CelebrationBurst({
     super.key,
@@ -34,9 +35,9 @@ class _CelebrationBurstState extends State<CelebrationBurst>
   late List<_Particle> _particles;
 
   static const _colors = [
-    AppColors.amber,
+    AppColors.accent,
     AppColors.pink,
-    AppColors.blue,
+    AppColors.secondary,
     AppColors.green,
     AppColors.coral,
     AppColors.primary,

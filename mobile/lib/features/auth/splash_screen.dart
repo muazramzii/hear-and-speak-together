@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../theme/theme.dart';
 
 /// Shown only while a stored token is being checked at startup.
 ///
