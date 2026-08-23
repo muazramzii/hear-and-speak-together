@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
+import '../features/dev/component_showcase_screen.dart';
 import '../features/dev/pronunciation_sandbox_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
@@ -53,6 +54,9 @@ class AppRoutes {
   // Phase 2: developer-only AI validation tool, not part of the child-facing
   // flow. Gated server-side on `is_staff`, same as the endpoints it calls.
   static const String pronunciationSandbox = '/dev/pronunciation-sandbox';
+  // Phase 3: developer-only design-system review screen. Not part of the
+  // child-facing flow and calls no API - purely local widget review.
+  static const String componentShowcase = '/dev/component-showcase';
 
   // Bottom-navigation branches.
   static const String home = '/home';
@@ -80,6 +84,7 @@ class AppRoutes {
   static const String profilesName = 'profiles';
   static const String connectionName = 'connection';
   static const String pronunciationSandboxName = 'pronunciation-sandbox';
+  static const String componentShowcaseName = 'component-showcase';
   static const String homeName = 'home';
   static const String progressName = 'progress';
   static const String rewardsName = 'rewards';
@@ -280,14 +285,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.pronunciationSandboxName,
         builder: (context, state) => const PronunciationSandboxScreen(),
       ),
+      GoRoute(
+        // Phase 3 Stage 1 design-system review - a developer aid, calls no
+        // API. See ComponentShowcaseScreen's docstring.
+        path: AppRoutes.componentShowcase,
+        name: AppRoutes.componentShowcaseName,
+        builder: (context, state) => const ComponentShowcaseScreen(),
+      ),
     ],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final location = state.matchedLocation;
 
-      // The diagnostics screen and the dev sandbox are always reachable.
+      // The diagnostics screen and both dev-only screens are always
+      // reachable.
       if (location == AppRoutes.connection ||
-          location == AppRoutes.pronunciationSandbox) {
+          location == AppRoutes.pronunciationSandbox ||
+          location == AppRoutes.componentShowcase) {
         return null;
       }
 

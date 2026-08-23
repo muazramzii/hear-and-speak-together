@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
-import '../../core/theme/app_theme.dart';
-import '../../design_system/design_system.dart';
+import '../../theme/theme.dart';
+import '../../widgets/app_widgets.dart';
 import '../../l10n/l10n.dart';
 import '../../providers/auth_provider.dart';
 import '../../repositories/content_repository.dart';
@@ -79,26 +79,8 @@ class HomeScreen extends ConsumerWidget {
                         (items) =>
                             items.isEmpty
                                 ? const _EmptyLessons()
-                                : Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    AppPrimaryButton(
-                                      label: l10n.homeContinueLearning,
-                                      icon: Icons.map_rounded,
-                                      onPressed:
-                                          () => context.pushNamed(
-                                            AppRoutes.learnLessonsName,
-                                            queryParameters: {
-                                              'lang': profile.languageCode,
-                                            },
-                                          ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.lg),
-                                    _ModeGrid(
-                                      languageCode: profile.languageCode,
-                                    ),
-                                  ],
+                                : _HeroAdventureSection(
+                                  languageCode: profile.languageCode,
                                 ),
                   ),
 
@@ -184,7 +166,7 @@ class _HeroGreetingCard extends StatelessWidget {
     final l10n = context.l10n;
     final hasStreak = streakDays > 0;
 
-    return AppGradientCard(
+    return HeroCard(
       gradient: AppGradients.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,10 +196,7 @@ class _HeroGreetingCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Mascot(
-                mood: hasStreak ? MascotMood.happy : MascotMood.idle,
-                size: 72,
-              ),
+              Mascot(state: MascotEmotion.forStreak(streakDays), size: 72),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -258,7 +237,7 @@ class _HeroGreetingCard extends StatelessWidget {
           ),
           if (hasStreak) ...[
             const SizedBox(height: AppSpacing.sm),
-            XpBar(
+            LinearProgressBar(
               value: _streakFraction == 0 ? 1.0 : _streakFraction,
               color: Colors.white,
               trackColor: Colors.white.withValues(alpha: 0.25),
@@ -310,25 +289,22 @@ class _SupervisorCard extends StatelessWidget {
   }
 }
 
-/// The four modes from the design: Learn, Listen, Speak (AI) and Quiz.
-class _ModeGrid extends StatelessWidget {
-  const _ModeGrid({required this.languageCode});
+/// Replaces the old 2x2 mode grid with one visual "adventure" anchor and a
+/// single primary action - a child should see one obvious next step on
+/// Home, not four equally-weighted choices. Both the card and the button
+/// lead to the same place (the Speak-mode Learning Journey); the card is
+/// the "what's this about" invitation, the button is the actual action,
+/// matching how `AppPrimaryButton`/`HeroCard` are used everywhere else in
+/// the app (one hero surface, one primary action).
+class _HeroAdventureSection extends StatelessWidget {
+  const _HeroAdventureSection({required this.languageCode});
 
   final String languageCode;
 
-  /// Every mode goes through the lesson picker. Jumping straight into the
-  /// first lesson made the rest of the content unreachable.
-  void _pickLesson(BuildContext context, String? mode) {
-    if (mode == null) {
-      context.pushNamed(
-        AppRoutes.learnLessonsName,
-        queryParameters: {'lang': languageCode},
-      );
-      return;
-    }
+  void _startLearning(BuildContext context) {
     context.pushNamed(
       AppRoutes.modeLessonsName,
-      pathParameters: {'mode': mode},
+      pathParameters: {'mode': 'speak'},
       queryParameters: {'lang': languageCode},
     );
   }
@@ -337,94 +313,39 @@ class _ModeGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.05,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ModeCard(
-          title: l10n.modeLearn,
-          subtitle: l10n.modeLearnSubtitle,
-          icon: Icons.menu_book_rounded,
+        HeroCard(
           gradient: AppGradients.warm,
-          onTap: () => _pickLesson(context, null),
+          child: InkWell(
+            onTap: () => _startLearning(context),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.homeAdventureTitle, style: AppTypography.h3),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(l10n.homeSubtitle, style: AppTypography.body),
+                    ],
+                  ),
+                ),
+                const Mascot(state: MascotState.encourage, size: 64),
+              ],
+            ),
+          ),
         ),
-        _ModeCard(
-          title: l10n.modeListen,
-          subtitle: l10n.modeListenSubtitle,
-          icon: Icons.headphones_rounded,
-          gradient: AppGradients.sky,
-          onTap: () => _pickLesson(context, 'listen'),
-        ),
-        _ModeCard(
-          title: l10n.modeSpeak,
-          subtitle: l10n.modeSpeakSubtitle,
-          icon: Icons.mic_rounded,
-          gradient: AppGradients.success,
-          onTap: () => _pickLesson(context, 'speak'),
-        ),
-        _ModeCard(
-          title: l10n.modeQuiz,
-          subtitle: l10n.modeQuizSubtitle,
-          icon: Icons.help_outline_rounded,
+        const SizedBox(height: AppSpacing.lg),
+        AppPrimaryButton(
+          label: l10n.homeStartLearning,
+          icon: Icons.rocket_launch_rounded,
           gradient: AppGradients.primary,
-          onTap: () => _pickLesson(context, 'quiz'),
+          onPressed: () => _startLearning(context),
         ),
       ],
-    );
-  }
-}
-
-class _ModeCard extends StatelessWidget {
-  const _ModeCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.gradient,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Gradient gradient;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      color: AppColors.surface,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            height: 48,
-            width: 48,
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(
-              icon,
-              color: AppA11y.textColorFor(gradient.colors.last),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -461,7 +382,7 @@ class _ErrorCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.md),
-          AppSecondaryButton(
+          AppOutlineButton(
             label: context.l10n.actionTryAgain,
             onPressed: onRetry,
             expand: false,
