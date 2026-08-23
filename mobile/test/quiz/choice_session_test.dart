@@ -60,6 +60,19 @@ class _FakeContentRepository implements ContentRepository {
   Future<List<Category>> fetchCategories({String? languageCode}) async => [];
 
   @override
+  Future<Category> fetchCategoryDetail(int id) async {
+    return Category(
+      id: id,
+      slug: 'animals',
+      name: 'Animals',
+      description: '',
+      icon: '',
+      imageUrl: '',
+      lessonCount: 1,
+    );
+  }
+
+  @override
   Future<List<LanguageInfo>> fetchLanguages() async => [];
 
   @override

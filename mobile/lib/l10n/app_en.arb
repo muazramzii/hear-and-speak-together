@@ -199,6 +199,51 @@
     }
   },
   "lessonsChoose": "Choose a lesson",
+  "lessonIntroLetsLearn": "Let's learn how to say {word}!",
+  "@lessonIntroLetsLearn": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "lessonIntroCategory": "Category",
+  "lessonIntroDifficulty": "Difficulty",
+  "lessonIntroEstimatedTime": "Estimated time",
+  "lessonIntroMinutesRange": "{min}–{max} min",
+  "@lessonIntroMinutesRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "lessonIntroStart": "Start Lesson",
+  "difficultyBeginner": "Beginner",
+  "difficultyIntermediate": "Intermediate",
+  "learnExampleLabel": "Example",
+  "learnContinueToListen": "Continue to Listen",
+  "listenShowCaptions": "Show captions",
+  "listenHideCaptions": "Hide captions",
+  "listenTapToPlay": "Tap play to listen",
+  "listenContinueToSpeak": "Continue to Speak",
+  "celebrationTitle": "Lesson Complete!",
+  "celebrationLessonDone": "You finished {title}.",
+  "@celebrationLessonDone": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "celebrationXpEarned": "XP Earned",
+  "celebrationNewBadge": "New Badge!",
+  "celebrationNextLesson": "Next Lesson",
+  "celebrationBackToJourney": "Back to Journey",
+  "celebrationAllDone": "You've completed every lesson in this journey!",
   "journeyTitle": "Your Learning Journey",
   "journeyMascotPrompt": "Pick a lesson to continue!",
   "journeyLocked": "Locked",

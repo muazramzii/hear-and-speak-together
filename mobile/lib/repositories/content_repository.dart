@@ -47,6 +47,19 @@ class ContentRepository {
     }
   }
 
+  /// The one endpoint that links a lesson back to its category - the plain
+  /// lesson list/detail never includes it, so the Lesson Intro screen's
+  /// category chip is built by fetching every category's detail once and
+  /// indexing by lesson id (see [lessonCategoryNamesProvider]).
+  Future<Category> fetchCategoryDetail(int id) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('/categories/$id/');
+      return Category.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+
   Future<Lesson> fetchLesson(int id) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/lessons/$id/');
@@ -110,6 +123,28 @@ final categoriesProvider = FutureProvider.family<List<Category>, String>((
 final lessonProvider = FutureProvider.family<Lesson, int>((ref, id) {
   return ref.watch(contentRepositoryProvider).fetchLesson(id);
 });
+
+/// Lesson id -> category name, for a given practice language. Built by
+/// fetching every category's detail once, since no lesson endpoint exposes
+/// its own category. The category list is short (a handful per language),
+/// so this stays cheap.
+final lessonCategoryNamesProvider =
+    FutureProvider.family<Map<int, String>, String>((ref, languageCode) async {
+      final repository = ref.watch(contentRepositoryProvider);
+      final categories = await repository.fetchCategories(
+        languageCode: languageCode,
+      );
+      final details = await Future.wait(
+        categories.map(
+          (category) => repository.fetchCategoryDetail(category.id),
+        ),
+      );
+
+      return {
+        for (final detail in details)
+          for (final lessonId in detail.lessonIds) lessonId: detail.name,
+      };
+    });
 
 /// Lessons available in a given practice language.
 final lessonsForLanguageProvider = FutureProvider.family<List<Lesson>, String>((

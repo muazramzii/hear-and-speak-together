@@ -23,12 +23,16 @@ class WordSpeaker {
     String text, {
     required String languageCode,
     bool slow = false,
+    // Overrides `slow` with an exact rate - the Listen activity's 0.75x
+    // control needs a specific speed, distinct from the half-speed used by
+    // every other "listen slowly" button in the app.
+    double? rate,
   }) async {
     final locale = _localeFor[languageCode] ?? 'en-US';
 
     await _tts.stop();
     await _tts.setLanguage(locale);
-    await _tts.setSpeechRate(slow ? _slowRate : _normalRate);
+    await _tts.setSpeechRate(rate ?? (slow ? _slowRate : _normalRate));
     await _tts.setPitch(1.0);
     await _tts.speak(text);
   }
@@ -51,7 +55,12 @@ class WordSpeaker {
 }
 
 final wordSpeakerProvider = Provider<WordSpeaker>((ref) {
-  final speaker = WordSpeaker(FlutterTts());
+  final tts = FlutterTts();
+  // So `speak()`'s Future resolves when playback actually finishes, not the
+  // instant it starts - the Listen activity's visual listening indicator
+  // needs to track real playback, not just "the request was made".
+  tts.awaitSpeakCompletion(true);
+  final speaker = WordSpeaker(tts);
   ref.onDispose(speaker.stop);
   return speaker;
 });

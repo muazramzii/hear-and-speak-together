@@ -26,7 +26,10 @@ class LessonListScreen extends ConsumerWidget {
     required this.languageCode,
   });
 
-  /// Which mode the chosen lesson opens in. Null means Speak.
+  /// Kept for callers built against the old four-mode picker; every mode now
+  /// opens the same guided lesson experience (Stage 3), which walks Learn,
+  /// Listen, Speak and Quiz in one sequence, so this no longer changes where
+  /// tapping a lesson leads.
   final ChoiceMode? mode;
   final String languageCode;
 
@@ -39,21 +42,17 @@ class LessonListScreen extends ConsumerWidget {
   }
 
   void _open(BuildContext context, Lesson lesson) {
-    final name = switch (mode) {
-      ChoiceMode.listen => AppRoutes.listenName,
-      ChoiceMode.quiz => AppRoutes.quizName,
-      null => AppRoutes.speakName,
-    };
-
     context.pushNamed(
-      name,
+      AppRoutes.lessonSessionName,
       pathParameters: {'lessonId': '${lesson.id}'},
       queryParameters: {'lang': languageCode},
     );
   }
 }
 
-/// Learn mode reuses the same picker but opens the Learn route.
+/// Kept for the same reason as `LessonListScreen.mode` above - opens the
+/// same guided lesson experience as every other entry point now that a
+/// lesson is a full Intro-to-Celebration sequence, not a single mode.
 class LearnLessonListScreen extends ConsumerWidget {
   const LearnLessonListScreen({super.key, required this.languageCode});
 
@@ -65,7 +64,7 @@ class LearnLessonListScreen extends ConsumerWidget {
       languageCode: languageCode,
       onOpen:
           (context, lesson) => context.pushNamed(
-            AppRoutes.learnName,
+            AppRoutes.lessonSessionName,
             pathParameters: {'lessonId': '${lesson.id}'},
             queryParameters: {'lang': languageCode},
           ),

@@ -10,6 +10,7 @@ import '../features/dev/pronunciation_sandbox_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/learn/learn_screen.dart';
+import '../features/lesson_session/lesson_session_screen.dart';
 import '../features/lessons/lesson_list_screen.dart';
 import '../features/practice/speak_lesson_screen.dart';
 import '../features/profiles/profile_picker_screen.dart';
@@ -72,11 +73,19 @@ class AppRoutes {
   static const String learnLessons = 'learn-lessons';
   static const String modeLessons = 'lessons/:mode';
 
-  // Lesson-scoped mode screens.
+  // Lesson-scoped mode screens. Superseded for real navigation by
+  // `lessonSession` below (Phase 3 Stage 3), which walks all four modes in
+  // one guided sequence - these stay registered but are no longer linked to
+  // from anywhere in the app, same tradeoff already accepted for `learn` and
+  // `listen`/`quiz` since Home's Stage 2 redesign.
   static const String learn = 'learn/:lessonId';
   static const String listen = 'listen/:lessonId';
   static const String speak = 'speak/:lessonId';
   static const String quiz = 'quiz/:lessonId';
+
+  /// The guided lesson experience: Intro -> Learn -> Listen -> Speak -> Quiz
+  /// -> Celebration, as nested state within one route.
+  static const String lessonSession = 'lesson/:lessonId';
 
   static const String splashName = 'splash';
   static const String loginName = 'login';
@@ -97,6 +106,7 @@ class AppRoutes {
   static const String listenName = 'listen';
   static const String speakName = 'speak';
   static const String quizName = 'quiz';
+  static const String lessonSessionName = 'lesson-session';
 }
 
 /// Bridges a Riverpod [StateNotifier] to go_router's `refreshListenable`, so
@@ -236,6 +246,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                         (context, state) => ChoiceRoundScreen(
                           lessonId: _lessonId(state),
                           mode: ChoiceMode.quiz,
+                          languageCode: _languageCode(state),
+                        ),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.lessonSession,
+                    name: AppRoutes.lessonSessionName,
+                    builder:
+                        (context, state) => LessonSessionScreen(
+                          lessonId: _lessonId(state),
                           languageCode: _languageCode(state),
                         ),
                   ),

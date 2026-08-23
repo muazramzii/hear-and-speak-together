@@ -199,6 +199,51 @@
     }
   },
   "lessonsChoose": "Pilih pelajaran",
+  "lessonIntroLetsLearn": "Jom belajar sebut {word}!",
+  "@lessonIntroLetsLearn": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "lessonIntroCategory": "Kategori",
+  "lessonIntroDifficulty": "Tahap Kesukaran",
+  "lessonIntroEstimatedTime": "Anggaran masa",
+  "lessonIntroMinutesRange": "{min}–{max} min",
+  "@lessonIntroMinutesRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "lessonIntroStart": "Mula Pelajaran",
+  "difficultyBeginner": "Permulaan",
+  "difficultyIntermediate": "Pertengahan",
+  "learnExampleLabel": "Contoh",
+  "learnContinueToListen": "Teruskan ke Dengar",
+  "listenShowCaptions": "Tunjuk kapsyen",
+  "listenHideCaptions": "Sembunyi kapsyen",
+  "listenTapToPlay": "Tekan main untuk dengar",
+  "listenContinueToSpeak": "Teruskan ke Sebut",
+  "celebrationTitle": "Pelajaran Selesai!",
+  "celebrationLessonDone": "Anda telah selesaikan {title}.",
+  "@celebrationLessonDone": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "celebrationXpEarned": "XP Diperoleh",
+  "celebrationNewBadge": "Lencana Baharu!",
+  "celebrationNextLesson": "Pelajaran Seterusnya",
+  "celebrationBackToJourney": "Kembali ke Perjalanan",
+  "celebrationAllDone": "Anda telah selesaikan semua pelajaran dalam perjalanan ini!",
   "journeyTitle": "Perjalanan Pembelajaran Anda",
   "journeyMascotPrompt": "Pilih pelajaran untuk teruskan!",
   "journeyLocked": "Dikunci",

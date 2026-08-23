@@ -72,6 +72,10 @@ void main() {
         'listenTitle',
         'speakTitle',
         'quizTitle',
+        // "min" as a minutes abbreviation reads the same in both languages;
+        // only the surrounding placeholders differ, so there is no distinct
+        // Malay wording to write here.
+        'lessonIntroMinutesRange',
       };
 
       final untranslated =

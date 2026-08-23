@@ -33,6 +33,7 @@ class Category {
     required this.icon,
     required this.imageUrl,
     required this.lessonCount,
+    this.lessonIds = const [],
   });
 
   final int id;
@@ -43,6 +44,11 @@ class Category {
   final String imageUrl;
   final int lessonCount;
 
+  /// Only populated from the category *detail* endpoint (`/categories/:id/`),
+  /// which nests the category's lessons - the plain list endpoint has no
+  /// `lessons` key, so this stays empty there.
+  final List<int> lessonIds;
+
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'] as int,
@@ -52,6 +58,11 @@ class Category {
       icon: json['icon'] as String? ?? '',
       imageUrl: json['image_url'] as String? ?? '',
       lessonCount: json['lesson_count'] as int? ?? 0,
+      lessonIds:
+          (json['lessons'] as List?)
+              ?.map((l) => (l as Map)['id'] as int)
+              .toList() ??
+          const [],
     );
   }
 }
