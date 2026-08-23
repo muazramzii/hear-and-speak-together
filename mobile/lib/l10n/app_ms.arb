@@ -126,6 +126,16 @@
     }
   },
   "choiceNotEnoughWords": "Pelajaran ini belum mempunyai cukup perkataan untuk kuiz.",
+  "quizWhatIsThis": "Apakah ini?",
+  "quizChooseTheWord": "Pilih perkataan yang betul",
+  "quizAlmostThisIs": "Hampir! Ini ialah {word}.",
+  "@quizAlmostThisIs": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "choiceCorrectAnswer": "{word}, jawapan betul",
   "@choiceCorrectAnswer": {
     "placeholders": {
@@ -222,6 +232,17 @@
     }
   },
   "lessonIntroStart": "Mula Pelajaran",
+  "lessonIntroPosition": "Pelajaran {current} daripada {total}",
+  "@lessonIntroPosition": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "difficultyBeginner": "Permulaan",
   "difficultyIntermediate": "Pertengahan",
   "learnExampleLabel": "Contoh",
