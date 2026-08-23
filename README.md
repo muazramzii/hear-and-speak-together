@@ -205,7 +205,7 @@ never the source of the score.
 
 ## Tests
 
-**333 tests** — 236 backend, 97 Flutter. All run offline and call no paid API.
+**364 tests** — 267 backend, 97 Flutter. All run offline and call no paid API.
 
 ```bash
 cd backend && .venv\Scripts\python.exe manage.py test

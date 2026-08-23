@@ -1,88 +1,66 @@
-"""Malay text to IPA - a hand-written ruleset, not a library.
+"""Malay text to IPA, via Epitran (`msa-Latn`).
 
-No maintained Malay grapheme-to-phoneme library exists the way CMU's
-dictionary does for English, and building or training a real one is a
-separate project on its own. Standard Malay orthography is unusually
-regular, though - closer to a spelling system that predicts pronunciation
-than English's is - so a deterministic rule table is a defensible, honestly
-approximate stand-in, in a way the same approach would not be for English.
+Phase 2.5 replaced this module's original hand-written rule table with
+Epitran, a rule/mapping-based grapheme-to-phoneme engine with a dedicated
+Malay transducer. No native toolchain is required to install it - see
+`requirements.txt`.
 
-Rules below follow the mapping documented at Wikipedia's Help:IPA/Indonesian
-and Malay, cross-checked against the digraph list in the English Wikipedia
-article on Malay phonology (both accessed 2026-08-21):
+Kept as a thin wrapper with the same `.phonemes()` / `.to_ipa()` interface as
+`EnglishG2P` (see `g2p_english.py`), so the rest of the pronunciation engine
+(`engine.py`, `error_detection.py`, `debug.py`) never has to know which
+grapheme-to-phoneme approach backs which language.
 
-  https://en.wikipedia.org/wiki/Help:IPA/Indonesian_and_Malay
+**Behavioural differences from the previous hand-written table, stated
+plainly rather than silently changed:**
 
-**Known limitation, stated rather than hidden**: standard Malay spelling does
-not distinguish the two sounds written "e" - schwa (pepet, the common case)
-from close-mid /e/ (taling, in some loanwords and specific native words)
-without a diacritic most text does not carry. This table always resolves "e"
-to schwa, the statistically dominant reading. A handful of words - "meja"
-(desk, taling /e/) among them - will be transcribed with the wrong vowel as a
-result. This is a property of the writing system, not a bug in the rule
-table, and the same ambiguity exists for a human reader without prior
-knowledge of the word.
+- Epitran always resolves written "e" to close-mid /e/, never to schwa. The
+  old table had the opposite bias (always schwa, wrong for words like
+  "meja"). Neither is a complete model of Malay's schwa/e distinction -
+  standard orthography does not mark it, so no purely text-based G2P can get
+  every word right without a pronunciation dictionary. Epitran fixes the
+  documented "meja" case; it will now be wrong in the direction the old
+  table used to be right (a word that is genuinely schwa, e.g. the first
+  syllable of "sepuluh", comes out as /e/).
+- Diphthongs are realised as vowel+glide (e.g. "pandai" -> `p a n d a j`,
+  "harimau" -> `h a r i m a w`) rather than as single diphthong units
+  (`aɪ`, `aʊ`). Both are legitimate IPA conventions for Malay; this changes
+  which symbols show up in `errors`, not the underlying accuracy.
+- Word-final /k/ is **not** realised as a glottal stop (unlike the old
+  table's explicit rule for it, e.g. "tidak" -> `t i d a k`, not `...ʔ`).
+  This is a real regression against one specific, well-documented Malay
+  phonological rule - tracked as a known limitation rather than patched
+  back in, since silently special-casing one segmenter's output would
+  undermine the reason to prefer a maintained library over hand-written
+  rules in the first place.
+
+Affricates come back as tie-bar sequences (`t͡ʃ`, `d͡ʒ`) rather than the plain
+two-character `tʃ`/`dʒ` the old table used. `Epitran.trans_list()` already
+returns each affricate as a single list entry, so this needs no special
+handling anywhere else in the pipeline - alignment and phonetic distance both
+operate one entry at a time, panphon segments tie-bar sequences correctly.
 """
-
-# Longest match first: multi-letter sequences must be tried before the single
-# letters they contain, or "ng" would be read as "n" followed by an
-# unrelated "g".
-_DIPHTHONGS = {"ai": "aɪ", "au": "aʊ", "ei": "eɪ", "oi": "oɪ", "ui": "uɪ"}
-_DIGRAPHS = {"ng": "ŋ", "ny": "ɲ", "sy": "ʃ", "kh": "x"}
-
-_CONSONANTS = {
-    "b": "b", "c": "tʃ", "d": "d", "f": "f", "g": "ɡ", "h": "h",
-    "j": "dʒ", "k": "k", "l": "l", "m": "m", "n": "n", "p": "p",
-    "q": "k", "r": "r", "s": "s", "t": "t", "v": "v", "w": "w",
-    "x": "ks", "y": "j", "z": "z", "'": "ʔ",
-}
-
-# Schwa by default - see the module docstring. A word ending "-ah" gets a
-# distinct rule below rather than falling through here.
-_VOWELS = {"a": "a", "e": "ə", "i": "i", "o": "o", "u": "u"}
 
 
 class MalayG2P:
+    def __init__(self):
+        self._epi = None  # loaded lazily; see _ensure_loaded
+
+    def _ensure_loaded(self):
+        if self._epi is None:
+            import epitran
+
+            self._epi = epitran.Epitran("msa-Latn")
+
     def phonemes(self, text):
-        """Return a list of IPA phoneme units - one list entry per sound.
-        Deterministic - no external resource, nothing to load."""
-        word = text.lower().strip()
-        symbols = []
-        i = 0
-        length = len(word)
-
-        while i < length:
-            two = word[i : i + 2]
-
-            if two in _DIPHTHONGS:
-                symbols.append(_DIPHTHONGS[two])
-                i += 2
-                continue
-
-            if two in _DIGRAPHS:
-                symbols.append(_DIGRAPHS[two])
-                i += 2
-                continue
-
-            char = word[i]
-
-            if char == "k" and i == length - 1:
-                # Word-final k is a glottal stop, not a released /k/ - the
-                # one context-sensitive rule in this table, and the one with
-                # the most direct documentary support.
-                symbols.append("ʔ")
-            elif char in _VOWELS:
-                symbols.append(_VOWELS[char])
-            elif char in _CONSONANTS:
-                symbols.append(_CONSONANTS[char])
-            # Anything else (digits, punctuation) is silently dropped rather
-            # than raising - a word_list entry with a stray character should
-            # degrade, not crash a practice session.
-
-            i += 1
-
-        return symbols
+        """Return a list of IPA phoneme units - one list entry per sound,
+        even where the IPA symbol itself is multiple characters (e.g. the
+        tie-bar affricate 'd͡ʒ'). Kept separate from raw text so
+        alignment-based error detection can compare whole phonemes rather
+        than substrings of them."""
+        self._ensure_loaded()
+        return self._epi.trans_list(text.lower().strip())
 
     def to_ipa(self, text):
         """Return an IPA string for `text`."""
-        return "".join(self.phonemes(text))
+        self._ensure_loaded()
+        return self._epi.transliterate(text.lower().strip())

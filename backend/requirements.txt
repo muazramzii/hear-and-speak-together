@@ -28,9 +28,11 @@ faster-whisper>=1.0,<2.0
 
 # ---- Pronunciation scoring (local, deterministic, no network calls) ----
 # g2p_en: English grapheme-to-phoneme (CMU dict + trained model).
+# epitran: Malay grapheme-to-phoneme (msa-Latn transducer).
 # panphon: articulatory feature vectors for phonetic-distance scoring.
 # nltk: g2p_en's tokenizer/POS-tagger dependency (averaged_perceptron_tagger, cmudict).
 g2p_en>=2.1,<3.0
+epitran>=1.35,<2.0
 panphon>=0.20,<1.0
 nltk>=3.9,<4.0
 

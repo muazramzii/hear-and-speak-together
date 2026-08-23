@@ -15,12 +15,12 @@ download-throughput problem, not a compute problem; once cached, it is fast.
 
 import logging
 from functools import lru_cache
-from math import exp
 
 from django.conf import settings
 
 from ..base import AssessmentError, NoSpeechDetected
 from .base import RecognitionResult, SpeechRecognitionService
+from .confidence import ConfidenceNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -95,20 +95,10 @@ class WhisperSpeechRecognitionService(SpeechRecognitionService):
             raise NoSpeechDetected()
 
         text = " ".join(segment.text.strip() for segment in usable)
-        confidence = self._confidence_for(usable)
+        confidence = ConfidenceNormalizer.normalize(
+            segment.avg_logprob for segment in usable
+        )
 
         return RecognitionResult(
             text=text, confidence=confidence, language_code=language_code
         )
-
-    @staticmethod
-    def _confidence_for(segments):
-        """Whisper has no calibrated confidence score. `avg_logprob` is a log
-        probability - typically close to 0 when the model was sure and more
-        negative when it was not - so exponentiating it back into a 0-1 range
-        is the standard community proxy. It is directionally reliable, not a
-        precise probability, and is documented as such everywhere it is
-        surfaced to the app."""
-        values = [exp(segment.avg_logprob) for segment in segments]
-        mean = sum(values) / len(values)
-        return round(max(0.0, min(1.0, mean)) * 100, 1)
