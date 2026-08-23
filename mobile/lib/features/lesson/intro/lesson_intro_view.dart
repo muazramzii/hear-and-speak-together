@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../l10n/l10n.dart';
-import '../../models/content.dart';
-import '../../repositories/content_repository.dart';
-import '../../theme/theme.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/word_visual.dart';
+import '../../../l10n/l10n.dart';
+import '../../../models/content.dart';
+import '../../../repositories/content_repository.dart';
+import '../../../theme/theme.dart';
+import '../../../widgets/app_widgets.dart';
+import '../widgets/word_illustration.dart';
 
 /// Screen 1 of the guided lesson flow: a single landing moment before any
 /// activity starts, built around the lesson's first word as a hero preview -
@@ -37,6 +37,19 @@ class LessonIntroView extends ConsumerWidget {
     _ => context.l10n.difficultyBeginner,
   };
 
+  /// A deterministic colour per category, so lessons in different subjects
+  /// read as visually distinct on this screen - the backend does not assign
+  /// categories a colour, so this is derived client-side from the name.
+  (Color, Color) _categoryColor(String key) {
+    const palette = [
+      (AppColors.amber, AppColors.amberSoft),
+      (AppColors.blue, AppColors.blueSoft),
+      (AppColors.green, AppColors.greenSoft),
+      (AppColors.pink, AppColors.pinkSoft),
+    ];
+    return palette[key.hashCode.abs() % palette.length];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -46,6 +59,12 @@ class LessonIntroView extends ConsumerWidget {
     final categoryName = ref
         .watch(lessonCategoryNamesProvider(languageCode))
         .maybeWhen(data: (map) => map[lesson.id], orElse: () => null);
+
+    final lessons = ref
+        .watch(lessonsForLanguageProvider(languageCode))
+        .maybeWhen(data: (items) => items, orElse: () => const <Lesson>[]);
+    final position = lessons.indexWhere((item) => item.id == lesson.id);
+    final categoryColor = _categoryColor(categoryName ?? lesson.title);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -59,6 +78,15 @@ class LessonIntroView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (position >= 0 && lessons.isNotEmpty) ...[
+                    Text(
+                      l10n.lessonIntroPosition(position + 1, lessons.length),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+
                   HeroCard(
                     gradient: AppGradients.primary,
                     padding: const EdgeInsets.all(AppSpacing.xl),
@@ -73,7 +101,7 @@ class LessonIntroView extends ConsumerWidget {
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(AppSpacing.md),
-                            child: WordVisual(word: heroWord, size: 96),
+                            child: WordIllustration(word: heroWord, size: 96),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
@@ -99,6 +127,7 @@ class LessonIntroView extends ConsumerWidget {
                         _InfoChip(
                           icon: Icons.category_rounded,
                           label: categoryName,
+                          color: categoryColor,
                         ),
                       _InfoChip(
                         icon: Icons.trending_up_rounded,
@@ -140,32 +169,39 @@ class LessonIntroView extends ConsumerWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.color = (AppColors.primary, AppColors.violetSoft),
+  });
 
   final IconData icon;
   final String label;
+  final (Color, Color) color;
 
   @override
   Widget build(BuildContext context) {
+    final (foreground, background) = color;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.violetSoft,
+        color: background,
         borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: AppColors.primary),
+          Icon(icon, size: 16, color: foreground),
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
             style: Theme.of(
               context,
-            ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
+            ).textTheme.labelSmall?.copyWith(color: foreground),
           ),
         ],
       ),
