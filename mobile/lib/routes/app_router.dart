@@ -10,7 +10,7 @@ import '../features/dev/pronunciation_sandbox_screen.dart';
 import '../features/health/connection_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/learn/learn_screen.dart';
-import '../features/lesson_session/lesson_session_screen.dart';
+import '../features/lesson/lesson_session_screen.dart';
 import '../features/lessons/lesson_list_screen.dart';
 import '../features/practice/speak_lesson_screen.dart';
 import '../features/profiles/profile_picker_screen.dart';

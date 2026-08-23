@@ -126,6 +126,16 @@
     }
   },
   "choiceNotEnoughWords": "This lesson does not have enough words for a quiz yet.",
+  "quizWhatIsThis": "What is this?",
+  "quizChooseTheWord": "Choose the correct word",
+  "quizAlmostThisIs": "Almost! This is {word}.",
+  "@quizAlmostThisIs": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
   "choiceCorrectAnswer": "{word}, correct answer",
   "@choiceCorrectAnswer": {
     "placeholders": {
@@ -222,6 +232,17 @@
     }
   },
   "lessonIntroStart": "Start Lesson",
+  "lessonIntroPosition": "Lesson {current} of {total}",
+  "@lessonIntroPosition": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "difficultyBeginner": "Beginner",
   "difficultyIntermediate": "Intermediate",
   "learnExampleLabel": "Example",
