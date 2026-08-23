@@ -5,11 +5,11 @@ import '../../core/network/api_exception.dart';
 import '../../l10n/l10n.dart';
 import '../../repositories/content_repository.dart';
 import '../../theme/theme.dart';
-import 'celebration_view.dart';
-import 'learn_stage_view.dart';
-import 'lesson_intro_view.dart';
-import 'listen_stage_view.dart';
-import 'quiz_stage_view.dart';
+import 'celebration/celebration_view.dart';
+import 'learn/learn_stage_view.dart';
+import 'intro/lesson_intro_view.dart';
+import 'listen/listen_stage_view.dart';
+import 'quiz/quiz_stage_view.dart';
 import 'speak_stage_view.dart';
 
 /// A lesson is no longer a single screen: this walks a child through one

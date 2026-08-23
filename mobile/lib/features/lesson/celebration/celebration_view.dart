@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../l10n/l10n.dart';
-import '../../models/content.dart';
-import '../../repositories/content_repository.dart';
-import '../../routes/app_router.dart';
-import '../../theme/theme.dart';
-import '../../widgets/app_widgets.dart';
+import '../../../l10n/l10n.dart';
+import '../../../models/content.dart';
+import '../../../repositories/content_repository.dart';
+import '../../../routes/app_router.dart';
+import '../../../theme/theme.dart';
+import '../../../widgets/app_widgets.dart';
 
 /// The final step of the guided lesson flow: what was earned, and where to
 /// go next. Points and badges come from the Quiz stage's own submission

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/audio/word_speaker.dart';
-import '../../l10n/l10n.dart';
-import '../../models/content.dart';
-import '../../theme/theme.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/word_visual.dart';
+import '../../../core/audio/word_speaker.dart';
+import '../../../l10n/l10n.dart';
+import '../../../models/content.dart';
+import '../../../theme/theme.dart';
+import '../../../widgets/app_widgets.dart';
+import '../widgets/word_illustration.dart';
 
 /// Screen 3 of the guided lesson flow: an interactive listening pass over
 /// each word - hear it, replay it, slow it down, and choose whether the
@@ -30,7 +30,10 @@ class ListenStageView extends ConsumerStatefulWidget {
 
 class _ListenStageViewState extends ConsumerState<ListenStageView> {
   int _index = 0;
-  bool _captionsOn = false;
+  // Captions default on: this app's users cannot always rely on audio
+  // alone, so the written word is visible unless a child deliberately
+  // hides it, not the other way around.
+  bool _captionsOn = true;
   bool _slow = false;
   bool _isPlaying = false;
 
@@ -52,7 +55,7 @@ class _ListenStageViewState extends ConsumerState<ListenStageView> {
   void _goTo(int index) {
     setState(() {
       _index = index;
-      _captionsOn = false;
+      _captionsOn = true;
     });
   }
 
@@ -91,7 +94,7 @@ class _ListenStageViewState extends ConsumerState<ListenStageView> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: WordVisual(word: _word, size: 96),
+                        child: WordIllustration(word: _word, size: 96),
                       ),
                     ),
                   ),

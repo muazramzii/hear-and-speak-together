@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/audio/word_speaker.dart';
-import '../../core/text/syllables.dart';
-import '../../l10n/l10n.dart';
-import '../../models/content.dart';
-import '../../theme/theme.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/word_visual.dart';
+import '../../../core/audio/word_speaker.dart';
+import '../../../core/text/syllables.dart';
+import '../../../l10n/l10n.dart';
+import '../../../models/content.dart';
+import '../../../theme/theme.dart';
+import '../../../widgets/app_widgets.dart';
+import '../widgets/word_illustration.dart';
 
 /// Screen 2 of the guided lesson flow: a visual flashcard per word - meet
 /// the word, hear it, see it broken into syllables. No microphone; that
@@ -57,11 +57,23 @@ class _LearnStageViewState extends ConsumerState<LearnStageView> {
                     itemCount: widget.words.length,
                     onPageChanged: (value) => setState(() => _index = value),
                     itemBuilder:
-                        (context, i) => Padding(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          child: _LearnCard(
-                            word: widget.words[i],
-                            languageCode: widget.languageCode,
+                        (context, i) => AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, child) {
+                            final page =
+                                _controller.hasClients &&
+                                        _controller.page != null
+                                    ? _controller.page!
+                                    : _index.toDouble();
+                            final distance = (page - i).abs().clamp(0.0, 1.0);
+                            return Opacity(opacity: 1 - distance, child: child);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: _LearnCard(
+                              word: widget.words[i],
+                              languageCode: widget.languageCode,
+                            ),
                           ),
                         ),
                   ),
@@ -155,7 +167,11 @@ class _LearnCard extends ConsumerWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.large),
-                child: WordVisual(word: word, size: 88, fit: BoxFit.cover),
+                child: WordIllustration(
+                  word: word,
+                  size: 88,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
