@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.profiles.access import accessible_profiles
+
 from .models import PracticeAttempt
 from .serializers import AttemptSerializer, EvaluateRequestSerializer
 from .services.ai.factory import get_ai_service
@@ -114,7 +116,9 @@ class EvaluatePracticeView(APIView):
 class AttemptViewSet(viewsets.ReadOnlyModelViewSet):
     """GET /api/attempts/ and /api/attempts/{id}/
 
-    History for the signed-in account's own children only.
+    History for every profile the signed-in account may look at - their own
+    children, plus anything a `StudentLink` has shared with them, the same
+    visibility rule the parent/teacher progress endpoints use.
     """
 
     serializer_class = AttemptSerializer
@@ -122,17 +126,45 @@ class AttemptViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            PracticeAttempt.objects.filter(profile__owner=self.request.user)
+            PracticeAttempt.objects.filter(
+                profile__in=accessible_profiles(self.request.user)
+            )
             .select_related("word", "profile")
             .order_by("-created_at", "-id")
         )
 
-        profile_id = self.request.query_params.get("profile")
+        params = self.request.query_params
+
+        profile_id = params.get("profile")
         if profile_id:
             queryset = queryset.filter(profile_id=profile_id)
 
-        word_id = self.request.query_params.get("word")
+        word_id = params.get("word")
         if word_id:
             queryset = queryset.filter(word_id=word_id)
+
+        language = params.get("language")
+        if language:
+            queryset = queryset.filter(language_code=language)
+
+        category_id = params.get("category")
+        if category_id:
+            queryset = queryset.filter(word__lesson__category_id=category_id)
+
+        date_from = params.get("date_from")
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+
+        date_to = params.get("date_to")
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+
+        # "Result" filters on the same pass mark the app uses everywhere else
+        # to decide a word is learned (see `Profile`/`PracticeAttempt`).
+        result = params.get("result")
+        if result == "pass":
+            queryset = queryset.filter(pronunciation_score__gte=75)
+        elif result == "fail":
+            queryset = queryset.filter(pronunciation_score__lt=75)
 
         return queryset

@@ -6,13 +6,17 @@ aggregating their attempts, and a deterministic answer is one a teacher can
 check and a supervisor can defend.
 """
 
+from collections import Counter, defaultdict
 from datetime import timedelta
+from functools import lru_cache
 
 from django.db.models import Avg, Count, Max
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from apps.practice.models import PracticeAttempt, QuizSession
+from apps.practice.services.pronunciation.g2p_english import EnglishG2P
+from apps.practice.services.pronunciation.g2p_malay import MalayG2P
 
 from ..models import LessonProgress
 
@@ -27,6 +31,36 @@ WEAK_CATEGORY_THRESHOLD = 70
 
 # How long before a learner counts as having lapsed.
 INACTIVITY_DAYS = 3
+
+# A sound has to appear this many times across attempted words before its
+# error rate is trusted - a phoneme seen once that happened to be wrong is
+# noise, not a pattern.
+MIN_PHONEME_OCCURRENCES = 3
+
+# Only these error kinds implicate a specific sound (see
+# `pronunciation/error_detection.py`); "extra_sound" reports what was
+# inserted, not a mispronunciation of an expected phoneme.
+_PHONEME_ERROR_TYPES = {
+    "wrong_consonant",
+    "wrong_vowel",
+    "substitution",
+    "missing_phoneme",
+    "missing_ending",
+}
+
+_G2P = {"en": EnglishG2P(), "ms": MalayG2P()}
+
+
+@lru_cache(maxsize=1024)
+def _reference_phonemes(language_code, text):
+    """Memoized: the same handful of lesson words recur across every
+    attempt ever made, so this is called with a small, repeating set of
+    (language, text) pairs - cheap to cache, expensive to recompute per
+    attempt (G2P conversion, not a lookup)."""
+    g2p = _G2P.get(language_code)
+    if g2p is None or not text:
+        return ()
+    return tuple(g2p.phonemes(text))
 
 
 def _scored_attempts(profile):
@@ -156,6 +190,75 @@ def category_performance(profile):
     ]
 
 
+def _phoneme_stats(profile):
+    """Every sound with a trustworthy sample size, ranked by how often it is
+    mispronounced when it appears.
+
+    The rate is a real substitution rate - errors recorded against a sound
+    divided by how often that sound actually occurs in the words this
+    learner has attempted (re-derived via the same G2P conversion the
+    scoring engine itself uses on `reference_text`, not by re-running
+    recognition) - not just "how many errors mention this sound" out of all
+    errors, which would conflate a rarely-attempted hard sound with a
+    frequently-attempted easy one.
+    """
+    attempts = _scored_attempts(profile).values(
+        "language_code", "reference_text", "errors"
+    )
+
+    appearances = Counter()
+    error_counts = Counter()
+    examples = defaultdict(list)
+
+    for attempt in attempts:
+        phonemes = _reference_phonemes(
+            attempt["language_code"], attempt["reference_text"]
+        )
+        appearances.update(phonemes)
+
+        for error in attempt["errors"] or []:
+            if error.get("type") not in _PHONEME_ERROR_TYPES:
+                continue
+            phoneme = error.get("expected") or error.get("detected")
+            if not phoneme:
+                continue
+            error_counts[phoneme] += 1
+            if attempt["reference_text"] not in examples[phoneme]:
+                examples[phoneme].append(attempt["reference_text"])
+
+    stats = []
+    for phoneme, total in appearances.items():
+        if total < MIN_PHONEME_OCCURRENCES:
+            continue
+        errors = error_counts.get(phoneme, 0)
+        stats.append(
+            {
+                "phoneme": phoneme,
+                "frequency": round(100 * errors / total),
+                "occurrences": errors,
+                "sample_size": total,
+                "examples": examples[phoneme][:5],
+            }
+        )
+    return stats
+
+
+def weak_phonemes(profile, limit=5):
+    """The flagship analytics feature: which sounds this learner most often
+    gets wrong, worst first."""
+    stats = [s for s in _phoneme_stats(profile) if s["occurrences"] > 0]
+    stats.sort(key=lambda item: item["frequency"], reverse=True)
+    return stats[:limit]
+
+
+def strong_phonemes(profile, limit=5):
+    """Sounds attempted often and rarely missed - the mirror of
+    `weak_phonemes`, for "what's already working"."""
+    stats = [s for s in _phoneme_stats(profile) if s["frequency"] == 0]
+    stats.sort(key=lambda item: item["sample_size"], reverse=True)
+    return stats[:limit]
+
+
 def recent_attempts(profile, limit=5):
     rows = (
         _scored_attempts(profile)
@@ -200,6 +303,57 @@ def improvement_trend(profile, days=7):
         }
         for row in rows
     ]
+
+
+def weekly_comparison(profile):
+    """This week's practice against last week's, for the Improvement tab.
+
+    Never phrased as a regression - a decline is reported as a smaller (or
+    negative) number for the UI to render neutrally, not flagged as
+    "worse" here; the service reports facts, the screen chooses tone.
+    """
+    now = timezone.now()
+    this_week_start = now - timedelta(days=7)
+    last_week_start = now - timedelta(days=14)
+
+    def _window(start, end):
+        attempts = _scored_attempts(profile).filter(
+            created_at__gte=start, created_at__lt=end
+        )
+        aggregate = attempts.aggregate(average=Avg("pronunciation_score"))
+        completed = (
+            attempts.values("word")
+            .annotate(best=Max("pronunciation_score"))
+            .filter(best__gte=75)
+            .count()
+        )
+        return {
+            "average_score": (
+                round(aggregate["average"])
+                if aggregate["average"] is not None
+                else None
+            ),
+            "attempts": attempts.count(),
+            "words_completed": completed,
+        }
+
+    this_week = _window(this_week_start, now)
+    last_week = _window(last_week_start, this_week_start)
+
+    def _delta(key):
+        current, previous = this_week[key], last_week[key]
+        if current is None or previous is None:
+            return None
+        return current - previous
+
+    return {
+        "this_week": this_week,
+        "last_week": last_week,
+        "score_change": _delta("average_score"),
+        "attempts_change": _delta("attempts"),
+        "words_completed_change": _delta("words_completed"),
+        "streak_days": profile.streak_days,
+    }
 
 
 def recommendations(profile):

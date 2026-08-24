@@ -133,6 +133,88 @@ void main() {
       expect(report.lessons, isEmpty);
       expect(report.categories, isEmpty);
       expect(report.weakWords, isEmpty);
+      expect(report.recentAttempts, isEmpty);
+      expect(report.trend, isEmpty);
+      expect(report.phonemes.weak, isEmpty);
+      expect(report.phonemes.strong, isEmpty);
+      expect(report.weeklyComparison, isNull);
+      expect(report.recommendations, isEmpty);
+    });
+
+    test('parses the Phase 4 analytics sections', () {
+      final report = ProgressReport.fromJson(const {
+        'trend': [
+          {'date': '2026-08-20', 'average_score': 82, 'attempts': 3},
+        ],
+        'recent_attempts': [
+          {
+            'id': 1,
+            'word': 'elephant',
+            'score': 82,
+            'created_at': '2026-08-24T10:00:00Z',
+          },
+        ],
+        'phonemes': {
+          'weak': [
+            {
+              'phoneme': 'l',
+              'frequency': 68,
+              'occurrences': 6,
+              'sample_size': 9,
+              'examples': ['bola', 'belon'],
+            },
+          ],
+          'strong': [
+            {
+              'phoneme': 'k',
+              'frequency': 0,
+              'occurrences': 0,
+              'sample_size': 4,
+              'examples': [],
+            },
+          ],
+        },
+        'weekly_comparison': {
+          'this_week': {
+            'average_score': 90,
+            'attempts': 4,
+            'words_completed': 2,
+          },
+          'last_week': {
+            'average_score': 80,
+            'attempts': 3,
+            'words_completed': 1,
+          },
+          'score_change': 10,
+          'attempts_change': 1,
+          'words_completed_change': 1,
+          'streak_days': 5,
+        },
+        'recommendations': [
+          {
+            'type': 'practise_words',
+            'reason': 'below_target_score',
+            'words': [
+              {
+                'word_id': 3,
+                'text': 'gajah',
+                'lesson_id': 2,
+                'average_score': 55,
+                'attempts': 3,
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(report.trend.single.averageScore, 82);
+      expect(report.recentAttempts.single.word, 'elephant');
+      expect(report.phonemes.weak.single.phoneme, 'l');
+      expect(report.phonemes.weak.single.frequency, 68);
+      expect(report.phonemes.strong.single.frequency, 0);
+      expect(report.weeklyComparison!.scoreChange, 10);
+      expect(report.weeklyComparison!.thisWeek.averageScore, 90);
+      expect(report.recommendations.single.words.single.text, 'gajah');
     });
   });
 }
