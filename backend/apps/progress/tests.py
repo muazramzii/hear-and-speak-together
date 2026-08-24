@@ -205,6 +205,141 @@ class AnalyticsTests(TestCase):
         self.assertEqual(len(trend), 2)
 
 
+def attempt_with_errors(profile, word, score, errors, *, reference_text=None):
+    return PracticeAttempt.objects.create(
+        profile=profile,
+        word=word,
+        language_code="en",
+        locale="en-US",
+        reference_text=reference_text or word.text,
+        recognized_text=word.text,
+        pronunciation_score=score,
+        similarity_score=score,
+        errors=errors,
+    )
+
+
+class PhonemeAnalyticsTests(TestCase):
+    """Uses real words ("ball", "lion", "cat") so the phoneme sequences come
+    from the actual G2P conversion the scoring engine uses, not a fixture -
+    the whole point of this feature is that it is derived, not invented."""
+
+    def setUp(self):
+        self.language, self.lesson, _ = build_world(word_count=0)
+        self.ball = Word.objects.create(lesson=self.lesson, text="ball", order=0)
+        self.lion = Word.objects.create(lesson=self.lesson, text="lion", order=1)
+        self.cat = Word.objects.create(lesson=self.lesson, text="cat", order=2)
+        user = User.objects.create_user(
+            email="p@example.com", name="P", password="TeaCup!2026"
+        )
+        self.profile = Profile.objects.create(
+            owner=user, name="Ali", practice_language=self.language
+        )
+
+    def test_a_sound_missed_below_the_sample_threshold_is_ignored(self):
+        # "ball" and "lion" each contain /l/ once - two attempts is below
+        # MIN_PHONEME_OCCURRENCES, so even a 100% miss rate must not surface.
+        attempt_with_errors(
+            self.profile,
+            self.ball,
+            40,
+            [{"type": "wrong_consonant", "expected": "l", "detected": "w"}],
+        )
+        attempt_with_errors(
+            self.profile,
+            self.lion,
+            40,
+            [{"type": "wrong_consonant", "expected": "l", "detected": "w"}],
+        )
+
+        self.assertEqual(analytics.weak_phonemes(self.profile), [])
+
+    def test_a_frequently_missed_sound_is_reported_with_its_real_rate(self):
+        for _ in range(2):
+            attempt_with_errors(
+                self.profile,
+                self.ball,
+                40,
+                [{"type": "wrong_consonant", "expected": "l", "detected": "w"}],
+            )
+        attempt_with_errors(
+            self.profile,
+            self.lion,
+            40,
+            [{"type": "wrong_consonant", "expected": "l", "detected": "w"}],
+        )
+        # A fourth attempt at "ball" said correctly - /l/ now appears four
+        # times total across attempts, mispronounced three of them.
+        attempt_with_errors(self.profile, self.ball, 95, [])
+
+        weak = analytics.weak_phonemes(self.profile)
+
+        self.assertEqual(len(weak), 1)
+        self.assertEqual(weak[0]["phoneme"], "l")
+        self.assertEqual(weak[0]["frequency"], 75)
+        self.assertEqual(weak[0]["occurrences"], 3)
+        self.assertIn("ball", weak[0]["examples"])
+        self.assertIn("lion", weak[0]["examples"])
+
+    def test_a_reliably_correct_sound_is_reported_as_strong(self):
+        for _ in range(3):
+            attempt_with_errors(self.profile, self.cat, 90, [])
+
+        strong = analytics.strong_phonemes(self.profile)
+
+        self.assertTrue(any(item["phoneme"] == "k" for item in strong))
+        matched = next(item for item in strong if item["phoneme"] == "k")
+        self.assertEqual(matched["frequency"], 0)
+        self.assertEqual(matched["sample_size"], 3)
+
+    def test_extra_sound_insertions_do_not_implicate_a_phoneme(self):
+        """An inserted sound has no `expected` phoneme, so it must not be
+        blamed on one that was never there to mispronounce."""
+        for _ in range(3):
+            attempt_with_errors(
+                self.profile,
+                self.cat,
+                60,
+                [{"type": "extra_sound", "expected": "", "detected": "s"}],
+            )
+
+        weak = analytics.weak_phonemes(self.profile)
+
+        self.assertEqual(weak, [])
+
+
+class WeeklyComparisonTests(TestCase):
+    def setUp(self):
+        self.language, self.lesson, self.words = build_world()
+        user = User.objects.create_user(
+            email="p@example.com", name="P", password="TeaCup!2026"
+        )
+        self.profile = Profile.objects.create(
+            owner=user, name="Ali", practice_language=self.language
+        )
+
+    def test_a_new_learner_has_no_comparable_history(self):
+        comparison = analytics.weekly_comparison(self.profile)
+
+        self.assertIsNone(comparison["this_week"]["average_score"])
+        self.assertIsNone(comparison["score_change"])
+
+    def test_compares_this_week_against_last_week(self):
+        # An hour ago, not exactly "now" - `weekly_comparison` takes its own
+        # `timezone.now()` reading as the window's upper bound, and pinning a
+        # fixture to the literal instant that boundary will be evaluated
+        # races the two clock reads against each other.
+        now = timezone.now() - timedelta(hours=1)
+        attempt(self.profile, self.words[0], 90, when=now)
+        attempt(self.profile, self.words[1], 60, when=now - timedelta(days=10))
+
+        comparison = analytics.weekly_comparison(self.profile)
+
+        self.assertEqual(comparison["this_week"]["average_score"], 90)
+        self.assertEqual(comparison["last_week"]["average_score"], 60)
+        self.assertEqual(comparison["score_change"], 30)
+
+
 class RecommendationTests(TestCase):
     def setUp(self):
         self.language, self.lesson, self.words = build_world()
@@ -383,6 +518,8 @@ class ProgressAPITests(APITestCase):
             "weak_words",
             "recent_attempts",
             "trend",
+            "phonemes",
+            "weekly_comparison",
         ):
             self.assertIn(key, body)
         self.assertEqual(body["summary"]["practice_sessions"], 1)
@@ -507,3 +644,7 @@ class SupervisorAccessTests(APITestCase):
         self.assertEqual(body["profile"]["name"], "Ali")
         self.assertEqual(body["summary"]["practice_sessions"], 1)
         self.assertIn("weak_words", body)
+        self.assertIn("phonemes", body)
+        self.assertIn("weak", body["phonemes"])
+        self.assertIn("strong", body["phonemes"])
+        self.assertIn("weekly_comparison", body)

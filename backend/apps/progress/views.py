@@ -1,12 +1,12 @@
 """Progress, achievements, recommendations and the supervisor dashboard."""
 
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsParentOrTeacher
+from apps.profiles.access import accessible_profiles
 from apps.profiles.models import Profile
 
 from .models import StudentLink
@@ -14,23 +14,8 @@ from .services import achievements as achievement_service
 from .services import analytics
 
 
-def _accessible_profiles(user):
-    """Profiles this user may look at.
-
-    Two routes in: profiles they own (their own children), and profiles a
-    teacher has been linked to. Anything else is invisible, so a supervisor
-    cannot browse other families by guessing ids.
-    """
-    linked_ids = StudentLink.objects.filter(supervisor=user).values_list(
-        "profile_id", flat=True
-    )
-    return Profile.objects.filter(
-        Q(owner=user) | Q(pk__in=linked_ids)
-    ).select_related("practice_language")
-
-
 def _get_profile_or_404(user, profile_id):
-    return get_object_or_404(_accessible_profiles(user), pk=profile_id)
+    return get_object_or_404(accessible_profiles(user), pk=profile_id)
 
 
 def _resolve_profile(request):
@@ -43,7 +28,7 @@ def _resolve_profile(request):
     if profile_id:
         return _get_profile_or_404(request.user, profile_id)
 
-    profile = _accessible_profiles(request.user).order_by("created_at").first()
+    profile = accessible_profiles(request.user).order_by("created_at").first()
     if profile is None:
         return None
     return profile
@@ -68,6 +53,11 @@ class ProgressView(APIView):
                 "weak_words": analytics.weak_words(profile),
                 "recent_attempts": analytics.recent_attempts(profile),
                 "trend": analytics.improvement_trend(profile),
+                "phonemes": {
+                    "weak": analytics.weak_phonemes(profile),
+                    "strong": analytics.strong_phonemes(profile),
+                },
+                "weekly_comparison": analytics.weekly_comparison(profile),
             }
         )
 
@@ -165,7 +155,7 @@ class StudentListView(APIView):
     permission_classes = [IsAuthenticated, IsParentOrTeacher]
 
     def get(self, request):
-        profiles = _accessible_profiles(request.user)
+        profiles = accessible_profiles(request.user)
 
         return Response(
             [
@@ -267,5 +257,10 @@ class StudentProgressView(APIView):
                 "recent_attempts": analytics.recent_attempts(profile, limit=10),
                 "trend": analytics.improvement_trend(profile),
                 "recommendations": analytics.recommendations(profile),
+                "phonemes": {
+                    "weak": analytics.weak_phonemes(profile),
+                    "strong": analytics.strong_phonemes(profile),
+                },
+                "weekly_comparison": analytics.weekly_comparison(profile),
             }
         )

@@ -494,3 +494,53 @@ class AttemptHistoryTests(APITestCase):
         self.client.credentials()
 
         self.assertEqual(self.client.get("/api/attempts/").status_code, 401)
+
+    def test_can_filter_by_result(self):
+        PracticeAttempt.objects.create(
+            profile=self.profile,
+            word=self.word,
+            language_code="en",
+            locale="en-US",
+            reference_text="elephant",
+            pronunciation_score=40,
+        )
+
+        passed = self.client.get("/api/attempts/?result=pass").json()
+        failed = self.client.get("/api/attempts/?result=fail").json()
+
+        self.assertEqual([item["score"] for item in passed["results"]], [82])
+        self.assertEqual([item["score"] for item in failed["results"]], [40])
+
+    def test_can_filter_by_category(self):
+        category_id = self.word.lesson.category_id
+
+        body = self.client.get(
+            f"/api/attempts/?category={category_id}"
+        ).json()
+
+        self.assertEqual(body["count"], 1)
+        self.assertEqual(
+            self.client.get("/api/attempts/?category=999999").json()["count"], 0
+        )
+
+    def test_a_linked_teacher_can_see_a_learners_attempts(self):
+        from apps.accounts.models import Role
+        from apps.progress.models import StudentLink
+
+        teacher = User.objects.create_user(
+            email="t@example.com", name="T", password="TeaCup!2026", role=Role.TEACHER
+        )
+        StudentLink.objects.create(supervisor=teacher, profile=self.profile)
+
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": teacher.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+        body = self.client.get("/api/attempts/").json()
+
+        self.assertEqual([item["score"] for item in body["results"]], [82])

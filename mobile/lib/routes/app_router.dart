@@ -12,6 +12,13 @@ import '../features/home/home_screen.dart';
 import '../features/learn/learn_screen.dart';
 import '../features/lesson/lesson_session_screen.dart';
 import '../features/lessons/lesson_list_screen.dart';
+import '../features/parent/dashboard/parent_dashboard_screen.dart';
+import '../features/parent/parent_shell.dart';
+import '../features/parent/profile/parent_profile_screen.dart';
+import '../features/parent/progress/attempt_detail_screen.dart';
+import '../features/parent/progress/parent_progress_screen.dart';
+import '../features/parent/reports/parent_reports_screen.dart';
+import '../features/parent/students/parent_students_screen.dart';
 import '../features/practice/speak_lesson_screen.dart';
 import '../features/profiles/profile_picker_screen.dart';
 import '../features/progress/progress_screen.dart';
@@ -87,6 +94,17 @@ class AppRoutes {
   /// -> Celebration, as nested state within one route.
   static const String lessonSession = 'lesson/:lessonId';
 
+  // Parent Mode (Phase 4): a completely separate shell from the child-facing
+  // routes above, reached automatically by any account whose role
+  // supervises students - see the router's `redirect`.
+  static const String parentRoot = '/parent';
+  static const String parentDashboard = '/parent/dashboard';
+  static const String parentStudents = '/parent/students';
+  static const String parentProgress = '/parent/progress';
+  static const String parentAttemptDetail = 'attempts/:attemptId';
+  static const String parentReports = '/parent/reports';
+  static const String parentProfile = '/parent/profile';
+
   static const String splashName = 'splash';
   static const String loginName = 'login';
   static const String registerName = 'register';
@@ -107,6 +125,13 @@ class AppRoutes {
   static const String speakName = 'speak';
   static const String quizName = 'quiz';
   static const String lessonSessionName = 'lesson-session';
+
+  static const String parentDashboardName = 'parent-dashboard';
+  static const String parentStudentsName = 'parent-students';
+  static const String parentProgressName = 'parent-progress';
+  static const String parentAttemptDetailName = 'parent-attempt-detail';
+  static const String parentReportsName = 'parent-reports';
+  static const String parentProfileName = 'parent-profile';
 }
 
 /// Bridges a Riverpod [StateNotifier] to go_router's `refreshListenable`, so
@@ -291,6 +316,76 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // Phase 4: the Parent/Teacher Intelligence Platform - a completely
+      // separate shell from the child-facing routes above. An account whose
+      // role supervises students lands here automatically (see `redirect`)
+      // and never sees the child navigation at all.
+      StatefulShellRoute.indexedStack(
+        builder:
+            (context, state, navigationShell) =>
+                ParentShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parentDashboard,
+                name: AppRoutes.parentDashboardName,
+                builder: (context, state) => const ParentDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parentStudents,
+                name: AppRoutes.parentStudentsName,
+                builder: (context, state) => const ParentStudentsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parentProgress,
+                name: AppRoutes.parentProgressName,
+                builder: (context, state) => const ParentProgressScreen(),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.parentAttemptDetail,
+                    name: AppRoutes.parentAttemptDetailName,
+                    builder:
+                        (context, state) => AttemptDetailScreen(
+                          attemptId:
+                              int.tryParse(
+                                state.pathParameters['attemptId'] ?? '',
+                              ) ??
+                              0,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parentReports,
+                name: AppRoutes.parentReportsName,
+                builder: (context, state) => const ParentReportsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parentProfile,
+                name: AppRoutes.parentProfileName,
+                builder: (context, state) => const ParentProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
       GoRoute(
         // A developer aid, not part of the child-facing flow.
         path: AppRoutes.connection,
@@ -335,6 +430,30 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (!auth.isAuthenticated) {
         return onAuthScreen ? null : AppRoutes.login;
+      }
+
+      final onParentRoute = location.startsWith(AppRoutes.parentRoot);
+      final supervisesStudents = auth.user?.role.supervisesStudents ?? false;
+
+      if (supervisesStudents) {
+        // Parent Mode is a separate app experience (Phase 4): keep a
+        // parent/teacher account out of the auth screens, off the splash,
+        // and out of the child-facing routes entirely. The one deliberate
+        // exception is a lesson handed off from a dashboard recommendation
+        // ("Start Practice") - that is a full switch into the practice
+        // activity for the family's own shared device, not the child's
+        // navigation chrome, so it is allowed through rather than bounced
+        // straight back to the dashboard.
+        final isLessonHandoff = location.startsWith('/home/lesson/');
+        if (!isLessonHandoff && (onAuthScreen || !onParentRoute)) {
+          return AppRoutes.parentDashboard;
+        }
+        return null;
+      }
+
+      // A student account should never end up in Parent Mode.
+      if (onParentRoute) {
+        return AppRoutes.profiles;
       }
 
       // Signed in: keep them out of the auth screens and off the splash.
