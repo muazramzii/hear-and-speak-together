@@ -15,9 +15,13 @@ call them; `view` is passed as `None` throughout because none of these
 permission classes read anything from it.
 """
 
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory, APITestCase
 
 from apps.accounts.models import Role
@@ -31,6 +35,7 @@ from .models import (
     ClassroomMembership,
     ClassroomStaffRole,
     School,
+    TeacherInvitation,
 )
 from .permissions import IsClassroomTeacher, IsSchoolAdmin, IsTeacherOfSchool, SchoolScopedQuerySet
 
@@ -546,3 +551,402 @@ class SchoolAPITests(APITestCase):
         self.assertTrue(School.objects.filter(id=self.school_a.id).exists())
         self.school_a.refresh_from_db()
         self.assertFalse(self.school_a.is_active)
+
+
+class TeacherInvitationAPITests(APITestCase):
+    """Phase 6 Task 5: `/api/schools/invitations/`, driven exactly as a
+    client would - real JWT login, real HTTP verbs, no mocks."""
+
+    def setUp(self):
+        self.admin_a = User.objects.create_user(
+            email="inv-admin-a@example.com",
+            name="Admin A",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.admin_b = User.objects.create_user(
+            email="inv-admin-b@example.com",
+            name="Admin B",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.school_a = School.objects.create(name="School A", admin=self.admin_a)
+        self.admin_a.school = self.school_a
+        self.admin_a.save()
+
+        self.school_b = School.objects.create(name="School B", admin=self.admin_b)
+        self.admin_b.school = self.school_b
+        self.admin_b.save()
+
+        self.teacher_a = User.objects.create_user(
+            email="inv-teacher-a@example.com",
+            name="Teacher A",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        self.parent = User.objects.create_user(
+            email="inv-parent@example.com",
+            name="Parent",
+            password="TeaCup!2026",
+            role=Role.PARENT,
+        )
+        # No school yet - the realistic case for someone about to become
+        # a teacher via an invitation.
+        self.prospective_teacher = User.objects.create_user(
+            email="prospective@example.com",
+            name="Prospective Teacher",
+            password="TeaCup!2026",
+            role=Role.STUDENT,
+        )
+
+    def authenticate(self, user):
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": user.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+    def make_invitation(self, **overrides):
+        defaults = {
+            "school": self.school_a,
+            "invited_by": self.admin_a,
+            "email": "invitee@example.com",
+        }
+        defaults.update(overrides)
+        return TeacherInvitation.objects.create(**defaults)
+
+    # -- create ------------------------------------------------------
+
+    def test_admin_can_create_invitation(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "new.teacher@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(len(body["invitation_code"]), 8)
+        self.assertEqual(body["school_name"], "School A")
+        self.assertIn("expires_at", body)
+
+    def test_invitation_code_is_unique_uppercase_alphanumeric(self):
+        first = self.make_invitation(email="a@example.com")
+        second = self.make_invitation(email="b@example.com")
+
+        self.assertNotEqual(first.invitation_code, second.invitation_code)
+        self.assertEqual(len(first.invitation_code), 8)
+        self.assertTrue(first.invitation_code.isalnum())
+        self.assertEqual(first.invitation_code, first.invitation_code.upper())
+
+    def test_invitation_expires_seven_days_from_creation(self):
+        invitation = self.make_invitation()
+
+        delta = invitation.expires_at - invitation.created_at
+        self.assertAlmostEqual(delta.total_seconds(), timedelta(days=7).total_seconds(), delta=5)
+
+    def test_teacher_cannot_create_invitation(self):
+        self.authenticate(self.teacher_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "x@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_parent_cannot_create_invitation(self):
+        self.authenticate(self.parent)
+
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "x@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_cannot_create_invitation(self):
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "x@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    # -- list ----------------------------------------------------------
+
+    def test_list_returns_only_same_school_invitations(self):
+        self.make_invitation(email="a@example.com")
+        self.make_invitation(school=self.school_b, invited_by=self.admin_b, email="b@example.com")
+
+        self.authenticate(self.admin_a)
+        response = self.client.get("/api/schools/invitations/")
+
+        emails = [row["email"] for row in response.json()]
+        self.assertEqual(emails, ["a@example.com"])
+
+    def test_list_excludes_inactive_invitations(self):
+        active = self.make_invitation(email="active@example.com")
+        inactive = self.make_invitation(email="inactive@example.com")
+        inactive.is_active = False
+        inactive.save(update_fields=["is_active"])
+
+        self.authenticate(self.admin_a)
+        response = self.client.get("/api/schools/invitations/")
+
+        emails = [row["email"] for row in response.json()]
+        self.assertEqual(emails, ["active@example.com"])
+
+    # -- accept ----------------------------------------------------------
+
+    def test_accept_success_attaches_teacher_to_school(self):
+        invitation = self.make_invitation(email="prospective@example.com")
+        self.authenticate(self.prospective_teacher)
+
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["school_name"], "School A")
+
+        self.prospective_teacher.refresh_from_db()
+        self.assertEqual(self.prospective_teacher.role, Role.TEACHER)
+        self.assertEqual(self.prospective_teacher.school_id, self.school_a.id)
+
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.accepted_at)
+        self.assertFalse(invitation.is_active)
+
+    def test_accept_invalid_code_is_rejected(self):
+        self.authenticate(self.prospective_teacher)
+
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": "NOTAREAL"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_accept_expired_invitation_is_rejected(self):
+        invitation = self.make_invitation(email="prospective@example.com")
+        invitation.expires_at = timezone.now() - timedelta(days=1)
+        invitation.save(update_fields=["expires_at"])
+
+        self.authenticate(self.prospective_teacher)
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.prospective_teacher.refresh_from_db()
+        self.assertIsNone(self.prospective_teacher.school_id)
+
+    def test_accept_inactive_invitation_is_rejected(self):
+        invitation = self.make_invitation(email="prospective@example.com")
+        invitation.is_active = False
+        invitation.save(update_fields=["is_active"])
+
+        self.authenticate(self.prospective_teacher)
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_duplicate_acceptance_is_rejected(self):
+        invitation = self.make_invitation(email="prospective@example.com")
+        self.authenticate(self.prospective_teacher)
+        self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        second_attempt = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(second_attempt.status_code, 400)
+
+    def test_teacher_already_in_a_different_school_cannot_accept(self):
+        invitation = self.make_invitation(
+            school=self.school_b, invited_by=self.admin_b, email="teacher-a@example.com"
+        )
+        self.authenticate(self.teacher_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.teacher_a.refresh_from_db()
+        self.assertEqual(self.teacher_a.school_id, self.school_a.id)
+
+    def test_accepting_an_invitation_to_the_same_school_again_is_allowed(self):
+        """"School assignment absent or valid" - already being on *this*
+        school is not the conflict the rule exists to catch."""
+        invitation = self.make_invitation(email="teacher-a@example.com")
+        self.authenticate(self.teacher_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_parent_role_cannot_accept_invitation(self):
+        invitation = self.make_invitation(email="parent@example.com")
+        self.authenticate(self.parent)
+
+        response = self.client.post(
+            "/api/schools/invitations/accept/",
+            {"invitation_code": invitation.invitation_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.parent.refresh_from_db()
+        self.assertEqual(self.parent.role, Role.PARENT)
+
+    # -- reset / deactivate ----------------------------------------------
+
+    def test_admin_can_reset_invitation_code(self):
+        invitation = self.make_invitation()
+        old_code = invitation.invitation_code
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(f"/api/schools/invitations/{invitation.id}/reset/")
+
+        self.assertEqual(response.status_code, 200)
+        invitation.refresh_from_db()
+        self.assertNotEqual(invitation.invitation_code, old_code)
+        # History is kept: same row, same invited_by/created_at.
+        self.assertEqual(invitation.invited_by_id, self.admin_a.id)
+
+    def test_reset_is_denied_for_a_different_schools_admin(self):
+        invitation = self.make_invitation()
+        self.authenticate(self.admin_b)
+
+        response = self.client.post(f"/api/schools/invitations/{invitation.id}/reset/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_reset_is_rejected_for_an_inactive_invitation(self):
+        invitation = self.make_invitation()
+        invitation.is_active = False
+        invitation.save(update_fields=["is_active"])
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(f"/api/schools/invitations/{invitation.id}/reset/")
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_admin_can_deactivate_invitation(self):
+        invitation = self.make_invitation()
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/schools/invitations/{invitation.id}/deactivate/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        invitation.refresh_from_db()
+        self.assertFalse(invitation.is_active)
+        # Soft revoke only - the row survives.
+        self.assertTrue(TeacherInvitation.objects.filter(id=invitation.id).exists())
+
+    def test_deactivate_is_denied_for_a_different_schools_admin(self):
+        invitation = self.make_invitation()
+        self.authenticate(self.admin_b)
+
+        response = self.client.post(
+            f"/api/schools/invitations/{invitation.id}/deactivate/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+        invitation.refresh_from_db()
+        self.assertTrue(invitation.is_active)
+
+    # -- one active invitation per (school, email) ------------------------
+
+    def test_duplicate_active_invitation_for_same_school_and_email_is_rejected(self):
+        self.make_invitation(email="repeat@example.com")
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "repeat@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            TeacherInvitation.objects.filter(
+                school=self.school_a, email="repeat@example.com", is_active=True
+            ).count(),
+            1,
+        )
+
+    def test_a_new_active_invitation_is_allowed_once_the_old_one_is_inactive(self):
+        """History (the old, no-longer-active row) must not block a
+        second, genuine invitation to the same address later."""
+        old = self.make_invitation(email="repeat@example.com")
+        old.is_active = False
+        old.save(update_fields=["is_active"])
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            "/api/schools/invitations/",
+            {"email": "repeat@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            TeacherInvitation.objects.filter(
+                school=self.school_a, email="repeat@example.com"
+            ).count(),
+            2,
+        )
+
+    def test_model_level_constraint_blocks_two_active_rows_directly(self):
+        """Proves the guarantee lives in the database, not only in the
+        serializer - the same insert attempted straight through the ORM,
+        bypassing the API/serializer validation entirely, must still
+        fail."""
+        self.make_invitation(email="direct@example.com")
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.make_invitation(email="direct@example.com")
+
+    def test_model_level_constraint_allows_an_inactive_duplicate(self):
+        self.make_invitation(email="direct2@example.com", is_active=False)
+
+        # Should not raise: the first row is inactive, so a second active
+        # row for the same (school, email) is not a conflict.
+        second = self.make_invitation(email="direct2@example.com")
+        self.assertTrue(second.is_active)

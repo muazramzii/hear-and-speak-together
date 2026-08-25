@@ -14,14 +14,40 @@ follow, rather than the two mechanisms competing.
 """
 
 import secrets
+import string
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from apps.accounts.models import Role
 
 # Excludes characters a teacher or admin would misread aloud: 0/O, 1/I/L.
 _CLASSROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 _CLASSROOM_CODE_LENGTH = 6
+
+# Deliberately the full alphabet (unlike the classroom code above): this
+# code is generated for, and read back by, a specific invited email
+# address rather than transcribed aloud from a roster sheet, so the
+# 0/O and 1/I/L ambiguity that matters for a spoken/printed classroom
+# code is not a concern here.
+_INVITATION_CODE_ALPHABET = string.ascii_uppercase + string.digits
+_INVITATION_CODE_LENGTH = 8
+_INVITATION_VALIDITY = timedelta(days=7)
+
+
+def generate_invitation_code():
+    return "".join(
+        secrets.choice(_INVITATION_CODE_ALPHABET)
+        for _ in range(_INVITATION_CODE_LENGTH)
+    )
+
+
+def default_invitation_expiry():
+    return timezone.now() + _INVITATION_VALIDITY
 
 
 def generate_classroom_code():
@@ -171,3 +197,107 @@ class ClassroomMembership(models.Model):
 
     def __str__(self):
         return f"{self.teacher.name} - {self.classroom.name} ({self.role})"
+
+
+class TeacherInvitation(models.Model):
+    """A code-based invitation for a specific email address to join a
+    School as a teacher - not email-delivery, just the record of an
+    invitation and the code that redeems it. Sending the code to `email`
+    is left to whatever channel the admin already uses (this system has
+    no outbound email integration to build on).
+
+    `is_active` does double duty as "still open" and "not revoked" - it
+    is flipped to `False` the moment the invitation is accepted, reset,
+    or explicitly deactivated, so a single flag always answers "can this
+    row's code still be redeemed" without cross-referencing
+    `accepted_at`. `reset_code` updates this same row in place rather
+    than creating a new one, so `invited_by`/`created_at` stay intact as
+    a history of who first invited this address and when.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        verbose_name=_("school"),
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_invitations",
+        verbose_name=_("invited by"),
+    )
+    email = models.EmailField(_("email"))
+    invitation_code = models.CharField(
+        _("invitation code"),
+        max_length=_INVITATION_CODE_LENGTH,
+        unique=True,
+        default=generate_invitation_code,
+    )
+    expires_at = models.DateTimeField(
+        _("expires at"), default=default_invitation_expiry
+    )
+    accepted_at = models.DateTimeField(_("accepted at"), null=True, blank=True)
+    is_active = models.BooleanField(_("active"), default=True)
+
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("teacher invitation")
+        verbose_name_plural = _("teacher invitations")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["school"]),
+        ]
+        constraints = [
+            # Conditional, not a plain UniqueConstraint on (school, email):
+            # history must survive. An old, inactive invitation for an
+            # address that already joined - or was revoked - should never
+            # block inviting that same address again; only a second row
+            # that is *also currently active* for the same school+email is
+            # the actual problem this guards against (two live codes for
+            # one person, one of which would silently orphan the other).
+            models.UniqueConstraint(
+                fields=["school", "email"],
+                condition=Q(is_active=True),
+                name="unique_active_invitation_per_school_email",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.email} -> {self.school.name}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_pending(self):
+        """Still open and safe to redeem right now."""
+        return self.is_active and self.accepted_at is None and not self.is_expired
+
+    def reset_code(self):
+        """Issue a new code and a fresh 7-day window, invalidating the
+        previous code immediately. The row is updated in place - see the
+        class docstring for why."""
+        self.invitation_code = generate_invitation_code()
+        self.expires_at = default_invitation_expiry()
+        return self.invitation_code
+
+    def deactivate(self):
+        self.is_active = False
+
+    def accept(self, teacher):
+        """Attach `teacher` to this invitation's school and close the
+        invitation out. Caller is responsible for having already checked
+        `is_pending`, role compatibility, and that `teacher` has no
+        conflicting school - this method only performs the state change,
+        it does not re-validate (see `TeacherInvitationViewSet.accept`,
+        the one place those rules are allowed to live)."""
+        teacher.role = Role.TEACHER
+        teacher.school = self.school
+        teacher.save(update_fields=["role", "school"])
+
+        self.accepted_at = timezone.now()
+        self.is_active = False
+        self.save(update_fields=["accepted_at", "is_active"])

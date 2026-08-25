@@ -22,7 +22,7 @@ from apps.accounts.models import Role
 from apps.practice.models import PracticeAttempt
 from apps.profiles.models import Profile
 
-from .models import Classroom, ClassroomMembership, School
+from .models import Classroom, ClassroomMembership, School, TeacherInvitation
 
 
 def _is_authenticated(request):
@@ -156,6 +156,10 @@ class SchoolScopedQuerySet:
     @staticmethod
     def users_for_school(school):
         return get_user_model().objects.filter(school=school)
+
+    @staticmethod
+    def invitations_for_school(school):
+        return TeacherInvitation.objects.filter(school=school)
 
     @staticmethod
     def classrooms_for_school(school):
