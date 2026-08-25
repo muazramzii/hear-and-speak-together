@@ -41,7 +41,21 @@ class _AppSoundWaveState extends State<AppSoundWave>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat();
+    );
+    if (widget.active) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(AppSoundWave oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Bars render at a fixed rest height whenever `active` is false either
+    // way, so ticking the controller while inactive only spends frames on
+    // work nothing on screen depends on - pause it instead.
+    if (widget.active && !oldWidget.active) {
+      _controller.repeat();
+    } else if (!widget.active && oldWidget.active) {
+      _controller.stop();
+    }
   }
 
   @override
@@ -56,24 +70,28 @@ class _AppSoundWaveState extends State<AppSoundWave>
       label: widget.active ? 'Audio playing' : null,
       child: SizedBox(
         height: widget.height,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (var i = 0; i < widget.barCount; i++) ...[
-                  if (i > 0) const SizedBox(width: 4),
-                  _Bar(
-                    height: widget.height,
-                    fraction: widget.active ? _fractionFor(i) : 0.2,
-                    color: widget.color,
-                  ),
+        // Every bar repaints each frame while active; boundary it so that
+        // repainting never forces whatever screen it sits on to repaint too.
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < widget.barCount; i++) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    _Bar(
+                      height: widget.height,
+                      fraction: widget.active ? _fractionFor(i) : 0.2,
+                      color: widget.color,
+                    ),
+                  ],
                 ],
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

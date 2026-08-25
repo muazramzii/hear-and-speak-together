@@ -30,40 +30,52 @@ class ParentDashboardScreen extends ConsumerWidget {
       backgroundColor: palette.background,
       appBar: AppBar(title: const Text('Dashboard')),
       body: SafeArea(
-        child: studentsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error:
-              (error, _) => _ErrorState(
-                message: error is ApiException ? error.message : '$error',
-                onRetry: () => ref.invalidate(studentsProvider),
-              ),
-          data: (students) {
-            if (students.isEmpty) {
-              return const ParentEmptyState(
-                icon: Icons.family_restroom_rounded,
-                message:
-                    'No learners yet. Link a child from the Students tab to see their progress here.',
-              );
-            }
+        child: Column(
+          children: [
+            const ConnectivityBanner(),
+            Expanded(
+              child: studentsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error:
+                    (error, _) => _ErrorState(
+                      message: error is ApiException ? error.message : '$error',
+                      onRetry: () => ref.invalidate(studentsProvider),
+                    ),
+                data: (students) {
+                  if (students.isEmpty) {
+                    return const ParentEmptyState(
+                      icon: Icons.family_restroom_rounded,
+                      message:
+                          'No learners yet. Link a child from the Students tab to see their progress here.',
+                    );
+                  }
 
-            final selectedId = effectiveStudentId(ref, students);
-            final selected = students.firstWhere((s) => s.id == selectedId);
+                  final selectedId = effectiveStudentId(ref, students);
+                  final selected = students.firstWhere(
+                    (s) => s.id == selectedId,
+                  );
 
-            return RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(studentsProvider);
-                ref.invalidate(studentProgressProvider(selectedId!));
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _ChildSelector(students: students, selectedId: selectedId),
-                  const SizedBox(height: 20),
-                  _DashboardBody(student: selected),
-                ],
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(studentsProvider);
+                      ref.invalidate(studentProgressProvider(selectedId!));
+                    },
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        _ChildSelector(
+                          students: students,
+                          selectedId: selectedId,
+                        ),
+                        const SizedBox(height: 20),
+                        _DashboardBody(student: selected),
+                      ],
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -485,18 +497,20 @@ class _CircularMetric extends StatelessWidget {
         return SizedBox(
           height: 80,
           width: 80,
-          child: CustomPaint(
-            painter: _RingPainter(
-              fraction: fraction,
-              color: color,
-              track: palette.surfaceAlt,
-            ),
-            child: Center(
-              child: Text(
-                value == null ? '—' : '$value%',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: color),
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _RingPainter(
+                fraction: fraction,
+                color: color,
+                track: palette.surfaceAlt,
+              ),
+              child: Center(
+                child: Text(
+                  value == null ? '—' : '$value%',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: color),
+                ),
               ),
             ),
           ),

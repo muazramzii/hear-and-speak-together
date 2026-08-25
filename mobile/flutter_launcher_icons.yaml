@@ -1,0 +1,12 @@
+# Generates every platform's launcher icon from the source images in
+# assets/icon/ (see scripts/generate_icon_assets.py for how those were
+# drawn). Run after changing the source images:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#7C5CE0"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  remove_alpha_ios: true

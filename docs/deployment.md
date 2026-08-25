@@ -175,7 +175,9 @@ are permitted plain HTTP in
 should not carry that allowance.
 
 A release build also needs a signing key. An unsigned debug APK is fine for a
-demonstration; the Play Store is not.
+demonstration; the Play Store is not. See
+[release-build.md](release-build.md) for generating the keystore and signing
+the build.
 
 ---
 

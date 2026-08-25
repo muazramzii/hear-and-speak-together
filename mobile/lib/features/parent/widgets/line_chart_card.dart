@@ -79,13 +79,15 @@ class LineChartCard extends StatelessWidget {
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOutCubic,
                   builder: (context, progress, _) {
-                    return CustomPaint(
-                      painter: _LineChartPainter(
-                        slots: _weekSlots,
-                        progress: progress,
-                        lineColor: palette.indigo,
-                        gridColor: palette.border,
-                        dotFillColor: palette.surface,
+                    return RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _LineChartPainter(
+                          slots: _weekSlots,
+                          progress: progress,
+                          lineColor: palette.indigo,
+                          gridColor: palette.border,
+                          dotFillColor: palette.surface,
+                        ),
                       ),
                     );
                   },

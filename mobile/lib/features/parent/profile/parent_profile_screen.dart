@@ -114,7 +114,11 @@ class ParentProfileScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ListTile(
-                    title: const Text('Appearance'),
+                    title: const Text(
+                      'Appearance',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: SegmentedButton<ThemeMode>(
                       segments: const [
                         ButtonSegment(

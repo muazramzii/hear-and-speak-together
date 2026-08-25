@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../models/progress.dart';
@@ -7,12 +8,48 @@ import '../../../repositories/students_repository.dart';
 import '../design/parent_theme.dart';
 import '../parent_providers.dart';
 import '../widgets/parent_widgets.dart';
+import 'pdf_report_builder.dart';
 
-/// Screen 5: exportable learning reports - UI only for now. PDF export is
-/// a later phase; every section here reads the same analytics the other
-/// screens do, just laid out as a report rather than a live dashboard.
+/// Screen 5: exportable learning reports. Every section reads the same
+/// analytics the other screens do, laid out as a report; the PDF export
+/// button turns whatever is currently on screen into a real PDF, generated
+/// and shared entirely on-device (see `PdfReportBuilder`).
 class ParentReportsScreen extends ConsumerWidget {
   const ParentReportsScreen({super.key});
+
+  Future<void> _exportPdf(BuildContext context, WidgetRef ref) async {
+    final students = ref.read(studentsProvider).valueOrNull;
+    if (students == null || students.isEmpty) return;
+
+    final studentId = effectiveStudentId(ref, students);
+    final report =
+        studentId == null
+            ? null
+            : ref.read(studentProgressProvider(studentId)).valueOrNull;
+
+    if (report == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Report data is still loading - try again in a moment.'),
+        ),
+      );
+      return;
+    }
+
+    final student = students.firstWhere((s) => s.id == studentId);
+    final generatedAt = DateTime.now();
+
+    final bytes = await PdfReportBuilder.buildBytes(
+      student: student,
+      report: report,
+      generatedAt: generatedAt,
+    );
+
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: PdfReportBuilder.fileName(student, generatedAt),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,13 +63,8 @@ class ParentReportsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: 'Export as PDF (coming soon)',
-            onPressed:
-                () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('PDF export is coming in a future update.'),
-                  ),
-                ),
+            tooltip: 'Export as PDF',
+            onPressed: () => _exportPdf(context, ref),
           ),
         ],
       ),

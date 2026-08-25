@@ -43,12 +43,45 @@ dependencies:
   # Nunito, the typeface in the design system
   google_fonts: ^6.2.1
 
+  # Phase 5: local PDF report generation and the OS share/print sheet, so a
+  # parent can export a report with no backend involvement.
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # Phase 5: persistent on-disk image caching (lesson illustrations survive
+  # app restarts and work offline) and connectivity change detection for
+  # the offline cache and sync queue.
+  cached_network_image: ^3.4.1
+  connectivity_plus: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^5.0.0
 
+  # Phase 5: generates every platform's launcher icon (including Android's
+  # adaptive icon) and native splash screen from the single source images in
+  # assets/icon/ - see flutter_launcher_icons.yaml and
+  # flutter_native_splash.yaml. Dev-only: neither package ships in the app.
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.4
+
 flutter:
   uses-material-design: true
   generate: true
+
+  assets:
+    - assets/icon/
+
+# Phase 5: record 5.2.1 allows record_linux 0.7.2 to resolve, but that
+# version predates a `record_platform_interface` interface change
+# (`startStream`, a new `hasPermission` parameter) and fails to compile -
+# not a Linux-only problem in practice, since `flutter build apk` still
+# type-checks the whole program graph. This project never runs on Linux
+# desktop; pinning record_linux forward to a version built against the
+# same platform-interface major version (^1.5.0, matching what record
+# 5.2.1 actually resolves) is a safe, targeted fix rather than an
+# unrelated version bump to the `record` package itself.
+dependency_overrides:
+  record_linux: ^1.3.1

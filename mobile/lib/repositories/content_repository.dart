@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../core/network/dio_client.dart';
+import '../core/offline/offline_cache.dart';
 import '../models/content.dart';
 
 /// Reads lesson content. All of it is read-only - content is authored in the
@@ -147,11 +150,36 @@ final lessonCategoryNamesProvider =
     });
 
 /// Lessons available in a given practice language.
+///
+/// Falls back to the last successful fetch (see `OfflineCache`) when the
+/// live request fails - a lesson already opened once stays selectable from
+/// the Learning Journey with no connection, rather than showing an error
+/// screen for content the app has already seen. A cache read/write failure
+/// is swallowed either way; it must never turn a working online fetch into
+/// a broken one.
 final lessonsForLanguageProvider = FutureProvider.family<List<Lesson>, String>((
   ref,
   languageCode,
-) {
-  return ref
-      .watch(contentRepositoryProvider)
-      .fetchLessons(languageCode: languageCode);
+) async {
+  final cache = ref.watch(offlineCacheProvider);
+
+  try {
+    final lessons = await ref
+        .watch(contentRepositoryProvider)
+        .fetchLessons(languageCode: languageCode);
+
+    unawaited(
+      cache
+          .saveLessons(languageCode, lessons.map((l) => l.toJson()).toList())
+          .catchError((_) {}),
+    );
+    return lessons;
+  } on ApiException {
+    final cached = await cache.readLessons(languageCode);
+    if (cached == null) rethrow;
+
+    return cached
+        .map((item) => Lesson.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
 });

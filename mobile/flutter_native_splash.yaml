@@ -1,0 +1,22 @@
+# Generates the native (pre-Flutter-engine) splash screen for Android and
+# iOS from assets/icon/splash_logo.png. Run after changing the source image:
+#   dart run flutter_native_splash:create
+#
+# Colour matches AppColors.background exactly (lib/theme/colors.dart) - the
+# app has one fixed light theme, so the splash stays the same regardless of
+# the device's system theme rather than flashing a mismatched dark splash
+# before the light UI appears.
+flutter_native_splash:
+  color: "#F8F7FC"
+  image: assets/icon/splash_logo.png
+  color_dark: "#F8F7FC"
+  image_dark: assets/icon/splash_logo.png
+
+  android_12:
+    image: assets/icon/app_icon_foreground.png
+    icon_background_color: "#7C5CE0"
+    image_dark: assets/icon/app_icon_foreground.png
+    icon_background_color_dark: "#7C5CE0"
+
+  android: true
+  ios: true
