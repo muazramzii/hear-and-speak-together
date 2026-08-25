@@ -950,3 +950,385 @@ class TeacherInvitationAPITests(APITestCase):
         # row for the same (school, email) is not a conflict.
         second = self.make_invitation(email="direct2@example.com")
         self.assertTrue(second.is_active)
+
+
+class ClassroomAPITests(APITestCase):
+    """Phase 6 Task 6: `/api/classrooms/`, driven exactly as a client
+    would - real JWT login, real HTTP verbs, no mocks."""
+
+    def setUp(self):
+        self.language = Language.objects.create(
+            code="en", name="English", locale="en-US"
+        )
+
+        self.admin_a = User.objects.create_user(
+            email="cls-admin-a@example.com",
+            name="Admin A",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.admin_b = User.objects.create_user(
+            email="cls-admin-b@example.com",
+            name="Admin B",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.school_a = School.objects.create(name="School A", admin=self.admin_a)
+        self.admin_a.school = self.school_a
+        self.admin_a.save()
+
+        self.school_b = School.objects.create(name="School B", admin=self.admin_b)
+        self.admin_b.school = self.school_b
+        self.admin_b.save()
+
+        self.teacher_a1 = User.objects.create_user(
+            email="cls-teacher-a1@example.com",
+            name="Teacher A1",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        self.teacher_a2 = User.objects.create_user(
+            email="cls-teacher-a2@example.com",
+            name="Teacher A2",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        self.teacher_b = User.objects.create_user(
+            email="cls-teacher-b@example.com",
+            name="Teacher B",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_b,
+        )
+
+        self.classroom_a1 = Classroom.objects.create(
+            school=self.school_a, name="Classroom A1"
+        )
+        self.classroom_a2 = Classroom.objects.create(
+            school=self.school_a, name="Classroom A2", is_active=False
+        )
+        self.classroom_b1 = Classroom.objects.create(
+            school=self.school_b, name="Classroom B1"
+        )
+        ClassroomMembership.objects.create(
+            classroom=self.classroom_a1,
+            teacher=self.teacher_a1,
+            role=ClassroomStaffRole.LEAD_TEACHER,
+        )
+
+        self.enrolled_profile = Profile.objects.create(
+            owner=self.admin_a,
+            name="Enrolled Student",
+            practice_language=self.language,
+            classroom=self.classroom_a1,
+        )
+        self.unenrolled_profile = Profile.objects.create(
+            owner=self.admin_a,
+            name="Unenrolled Student",
+            practice_language=self.language,
+        )
+        self.other_school_profile = Profile.objects.create(
+            owner=self.admin_b,
+            name="Other School Student",
+            practice_language=self.language,
+            classroom=self.classroom_b1,
+        )
+
+    def authenticate(self, user):
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": user.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+    # -- create ------------------------------------------------------------
+
+    def test_admin_can_create_classroom(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            "/api/classrooms/", {"name": "New Room"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body["name"], "New Room")
+        self.assertTrue(body["is_active"])
+        self.assertRegex(body["classroom_code"], r"^[A-Z]{3}-\d{3}$")
+
+    def test_created_classrooms_have_unique_codes(self):
+        self.authenticate(self.admin_a)
+
+        first = self.client.post(
+            "/api/classrooms/", {"name": "Room One"}, format="json"
+        ).json()
+        second = self.client.post(
+            "/api/classrooms/", {"name": "Room Two"}, format="json"
+        ).json()
+
+        self.assertNotEqual(first["classroom_code"], second["classroom_code"])
+
+    def test_teacher_cannot_create_classroom(self):
+        self.authenticate(self.teacher_a1)
+
+        response = self.client.post(
+            "/api/classrooms/", {"name": "Teacher's Room"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_cannot_list_classrooms(self):
+        response = self.client.get("/api/classrooms/")
+        self.assertEqual(response.status_code, 401)
+
+    # -- list ----------------------------------------------------------
+
+    def test_list_scoped_to_own_school(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/classrooms/")
+
+        names = {row["name"] for row in response.json()}
+        self.assertEqual(names, {"Classroom A1", "Classroom A2"})
+
+    def test_list_filter_by_active(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/classrooms/?active=true")
+
+        names = {row["name"] for row in response.json()}
+        self.assertEqual(names, {"Classroom A1"})
+
+    def test_list_filter_by_teacher(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(f"/api/classrooms/?teacher={self.teacher_a1.id}")
+
+        names = {row["name"] for row in response.json()}
+        self.assertEqual(names, {"Classroom A1"})
+
+    def test_list_search_by_name(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/classrooms/?search=A2")
+
+        names = {row["name"] for row in response.json()}
+        self.assertEqual(names, {"Classroom A2"})
+
+    # -- detail ----------------------------------------------------------
+
+    def test_admin_classroom_detail_includes_staff_and_student_count(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(f"/api/classrooms/{self.classroom_a1.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["student_count"], 1)
+        self.assertEqual(len(body["staff"]), 1)
+        self.assertEqual(body["staff"][0]["teacher_email"], self.teacher_a1.email)
+
+    def test_cross_school_classroom_detail_is_not_found(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.get(f"/api/classrooms/{self.classroom_a1.id}/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_teacher_can_read_their_own_classroom(self):
+        self.authenticate(self.teacher_a1)
+
+        response = self.client.get(f"/api/classrooms/{self.classroom_a1.id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_teacher_cannot_read_a_classroom_they_are_not_a_member_of(self):
+        """Same school, but `teacher_a2` has no `ClassroomMembership` row
+        for `classroom_a1` - `IsTeacherOfSchool` alone would allow this,
+        which is exactly why `retrieve` requires `IsClassroomTeacher`
+        instead."""
+        self.authenticate(self.teacher_a2)
+
+        response = self.client.get(f"/api/classrooms/{self.classroom_a1.id}/")
+
+        self.assertEqual(response.status_code, 403)
+
+    # -- update / soft delete ---------------------------------------------
+
+    def test_admin_can_update_classroom(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.patch(
+            f"/api/classrooms/{self.classroom_a1.id}/",
+            {"name": "Renamed Room", "is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.classroom_a1.refresh_from_db()
+        self.assertEqual(self.classroom_a1.name, "Renamed Room")
+        self.assertFalse(self.classroom_a1.is_active)
+
+    def test_teacher_cannot_update_classroom(self):
+        self.authenticate(self.teacher_a1)
+
+        response = self.client.patch(
+            f"/api/classrooms/{self.classroom_a1.id}/",
+            {"name": "Hijacked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_cross_school_admin_cannot_update_classroom(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.patch(
+            f"/api/classrooms/{self.classroom_a1.id}/",
+            {"name": "Hijacked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_soft_delete_deactivates_without_removing_the_row(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.delete(f"/api/classrooms/{self.classroom_a1.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(Classroom.objects.filter(id=self.classroom_a1.id).exists())
+        self.classroom_a1.refresh_from_db()
+        self.assertFalse(self.classroom_a1.is_active)
+
+    # -- teacher assignment -------------------------------------------
+
+    def test_admin_can_assign_lead_teacher(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a2.id}/teachers/",
+            {"teacher_id": self.teacher_a2.id, "role": "LEAD_TEACHER"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        roles = {row["role"] for row in response.json()}
+        self.assertIn("LEAD_TEACHER", roles)
+
+    def test_admin_can_assign_assistant(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/",
+            {"teacher_id": self.teacher_a2.id, "role": "ASSISTANT"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        roles = {row["role"] for row in response.json()}
+        self.assertEqual(roles, {"LEAD_TEACHER", "ASSISTANT"})
+
+    def test_admin_can_assign_therapist(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/",
+            {"teacher_id": self.teacher_a2.id, "role": "THERAPIST"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        roles = {row["role"] for row in response.json()}
+        self.assertIn("THERAPIST", roles)
+
+    def test_duplicate_membership_is_rejected(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/",
+            {"teacher_id": self.teacher_a1.id, "role": "ASSISTANT"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            ClassroomMembership.objects.filter(
+                classroom=self.classroom_a1, teacher=self.teacher_a1
+            ).count(),
+            1,
+        )
+
+    def test_assigning_a_teacher_from_a_different_school_is_rejected(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/",
+            {"teacher_id": self.teacher_b.id, "role": "LEAD_TEACHER"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_admin_can_remove_teacher_membership(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.delete(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/{self.teacher_a1.id}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            ClassroomMembership.objects.filter(
+                classroom=self.classroom_a1, teacher=self.teacher_a1
+            ).exists()
+        )
+        # The teacher's own account must survive - only the membership
+        # row is removed.
+        self.assertTrue(User.objects.filter(id=self.teacher_a1.id).exists())
+
+    # -- student transfer -------------------------------------------------
+
+    def test_admin_can_move_an_unenrolled_student_into_a_classroom(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a2.id}/students/",
+            {"profile_id": self.unenrolled_profile.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.unenrolled_profile.refresh_from_db()
+        self.assertEqual(self.unenrolled_profile.classroom_id, self.classroom_a2.id)
+
+    def test_admin_can_move_a_student_between_classrooms_in_the_same_school(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a2.id}/students/",
+            {"profile_id": self.enrolled_profile.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.enrolled_profile.refresh_from_db()
+        self.assertEqual(self.enrolled_profile.classroom_id, self.classroom_a2.id)
+
+    def test_moving_a_student_from_a_different_school_is_rejected(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            f"/api/classrooms/{self.classroom_a1.id}/students/",
+            {"profile_id": self.other_school_profile.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.other_school_profile.refresh_from_db()
+        self.assertEqual(self.other_school_profile.classroom_id, self.classroom_b1.id)
