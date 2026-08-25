@@ -142,6 +142,18 @@ class SchoolScopedQuerySet:
     """
 
     @staticmethod
+    def schools_for_user(user):
+        """The single `School` a SCHOOL_ADMIN or TEACHER belongs to -
+        empty for anyone with no `User.school` set (including every
+        PARENT/STUDENT account, which this hierarchy does not apply to).
+        A list/detail endpoint calls this rather than trusting a client-
+        supplied id, so "return only the authenticated user's school" has
+        exactly one implementation."""
+        if user.school_id is None:
+            return School.objects.none()
+        return School.objects.filter(id=user.school_id)
+
+    @staticmethod
     def users_for_school(school):
         return get_user_model().objects.filter(school=school)
 

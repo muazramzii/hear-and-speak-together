@@ -1,10 +1,13 @@
-"""Phase 6 Task 3: the tenant-isolation permission layer.
+"""Phase 6 Task 3 and Task 4: the tenant-isolation permission layer, and the
+School management API built on top of it.
 
-Exercises `apps.schools.permissions` directly against real database rows -
-no mocks - covering every scenario the Phase 6 brief lists: same-school
-access, cross-school denial, every `ClassroomMembership` role, and (to prove
-the new layer does not regress anything) the existing, frozen Parent/Student
-`accessible_profiles` rule.
+`SchoolTenancyTestCase`'s permission tests exercise `apps.schools.permissions`
+directly against real database rows - no mocks - covering same-school access,
+cross-school denial, every `ClassroomMembership` role, and (to prove the new
+layer does not regress anything) the existing, frozen Parent/Student
+`accessible_profiles` rule. `SchoolAPITests` (Task 4) drives the same
+guarantees through the real HTTP API, authenticating with a genuine JWT
+login rather than a mock, matching this project's existing API test style.
 
 `APIRequestFactory` builds a real Django/DRF request object so
 `has_permission`/`has_object_permission` are called exactly as a view would
@@ -14,7 +17,8 @@ permission classes read anything from it.
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory
+from django.urls import reverse
+from rest_framework.test import APIRequestFactory, APITestCase
 
 from apps.accounts.models import Role
 from apps.content.models import Category, Language, Lesson, Word
@@ -358,3 +362,187 @@ class SchoolScopedQuerySetTests(SchoolTenancyTestCase):
         result = SchoolScopedQuerySet.attempts_for_teacher(self.teacher_a)
         self.assertIn(self.attempt_a, result)
         self.assertNotIn(self.attempt_b, result)
+
+
+class SchoolAPITests(APITestCase):
+    """Phase 6 Task 4: `/api/schools/`, driven exactly as a client would -
+    real JWT login, real HTTP verbs, no mocks. Cross-tenant requests are
+    expected to come back 404, not 403: the queryset itself excludes any
+    school the caller doesn't belong to, so a wrong id is indistinguishable
+    from a non-existent one rather than leaking "yes, that school exists."
+    """
+
+    def setUp(self):
+        self.admin_a = User.objects.create_user(
+            email="api-admin-a@example.com",
+            name="Admin A",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.admin_b = User.objects.create_user(
+            email="api-admin-b@example.com",
+            name="Admin B",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.school_a = School.objects.create(name="School A", admin=self.admin_a)
+        self.admin_a.school = self.school_a
+        self.admin_a.save()
+
+        self.school_b = School.objects.create(name="School B", admin=self.admin_b)
+        self.admin_b.school = self.school_b
+        self.admin_b.save()
+
+        self.teacher_a = User.objects.create_user(
+            email="api-teacher-a@example.com",
+            name="Teacher A",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        self.parent = User.objects.create_user(
+            email="api-parent@example.com",
+            name="Parent",
+            password="TeaCup!2026",
+            role=Role.PARENT,
+        )
+
+    def authenticate(self, user):
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": user.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+    def test_requires_authentication(self):
+        response = self.client.get("/api/schools/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_school_admin_can_create_school(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.post(
+            "/api/schools/", {"name": "New Horizons"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["name"], "New Horizons")
+        self.assertEqual(response.json()["admin_email"], self.admin_a.email)
+
+    def test_creating_a_school_assigns_the_creator_as_its_staff(self):
+        """Without this, the creator's own `GET /api/schools/` would come
+        back empty until a separate step assigned them to it."""
+        fresh_admin = User.objects.create_user(
+            email="fresh-admin@example.com",
+            name="Fresh Admin",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.authenticate(fresh_admin)
+
+        response = self.client.post(
+            "/api/schools/", {"name": "Brand New School"}, format="json"
+        )
+
+        fresh_admin.refresh_from_db()
+        self.assertEqual(fresh_admin.school_id, response.json()["id"])
+
+    def test_teacher_cannot_create_school(self):
+        self.authenticate(self.teacher_a)
+
+        response = self.client.post(
+            "/api/schools/", {"name": "Teacher's School"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_parent_cannot_create_school(self):
+        self.authenticate(self.parent)
+
+        response = self.client.post(
+            "/api/schools/", {"name": "Parent's School"}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_list_returns_only_the_authenticated_users_school(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/")
+
+        ids = [item["id"] for item in response.json()]
+        self.assertEqual(ids, [self.school_a.id])
+
+    def test_admin_can_view_own_school_detail(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(f"/api/schools/{self.school_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "School A")
+
+    def test_teacher_can_view_their_own_school_detail(self):
+        self.authenticate(self.teacher_a)
+
+        response = self.client.get(f"/api/schools/{self.school_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_cross_school_admin_detail_is_not_found(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.get(f"/api/schools/{self.school_a.id}/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_can_patch_own_school(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.patch(
+            f"/api/schools/{self.school_a.id}/",
+            {"name": "School A Renamed"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.school_a.refresh_from_db()
+        self.assertEqual(self.school_a.name, "School A Renamed")
+
+    def test_teacher_cannot_patch_their_own_school(self):
+        """Read access is not write access - a same-school TEACHER passes
+        the queryset scope but is rejected by the SCHOOL_ADMIN role gate."""
+        self.authenticate(self.teacher_a)
+
+        response = self.client.patch(
+            f"/api/schools/{self.school_a.id}/",
+            {"name": "Hijacked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_cannot_patch_a_different_schools_school(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.patch(
+            f"/api/schools/{self.school_a.id}/",
+            {"name": "Hijacked"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.school_a.refresh_from_db()
+        self.assertEqual(self.school_a.name, "School A")
+
+    def test_soft_delete_deactivates_without_removing_the_row(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.delete(f"/api/schools/{self.school_a.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(School.objects.filter(id=self.school_a.id).exists())
+        self.school_a.refresh_from_db()
+        self.assertFalse(self.school_a.is_active)
