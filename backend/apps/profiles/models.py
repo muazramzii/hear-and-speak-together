@@ -89,6 +89,19 @@ class Profile(models.Model):
         ),
     )
 
+    # Phase 6: which Classroom this learner belongs to, if any. Null for
+    # every profile that predates multi-tenancy, and for any learner not
+    # enrolled at a school - the share_code path above keeps working for
+    # those regardless of this field.
+    classroom = models.ForeignKey(
+        "schools.Classroom",
+        on_delete=models.SET_NULL,
+        related_name="students",
+        verbose_name=_("classroom"),
+        null=True,
+        blank=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
