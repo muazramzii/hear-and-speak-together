@@ -42,14 +42,19 @@ class CircularScore extends StatelessWidget {
         return SizedBox(
           height: size,
           width: size,
-          child: CustomPaint(
-            painter: _RingPainter(
-              progress: animatedValue,
-              color: color,
-              trackColor: trackColor,
-              strokeWidth: strokeWidth,
+          // Isolates the ring's every-frame repaint to its own layer, so
+          // animating it never forces a parent (a card, a list row) to
+          // repaint too - see docs/performance.md.
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _RingPainter(
+                progress: animatedValue,
+                color: color,
+                trackColor: trackColor,
+                strokeWidth: strokeWidth,
+              ),
+              child: child == null ? null : Center(child: child),
             ),
-            child: child == null ? null : Center(child: child),
           ),
         );
       },

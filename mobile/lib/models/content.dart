@@ -101,6 +101,20 @@ class Lesson {
           const [],
     );
   }
+
+  /// The inverse of [fromJson] - only needed to round-trip a lesson through
+  /// the offline cache, which stores plain JSON, not Dart objects.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'difficulty': difficulty,
+      'image_url': imageUrl,
+      'word_count': wordCount,
+      'words': words.map((word) => word.toJson()).toList(),
+    };
+  }
 }
 
 class Word {
@@ -139,6 +153,19 @@ class Word {
       emoji: json['emoji'] as String? ?? '',
       audioUrl: json['audio_url'] as String? ?? '',
     );
+  }
+
+  /// The inverse of [fromJson] - see `Lesson.toJson`.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'meaning': meaning,
+      'example_sentence': exampleSentence,
+      'image_url': imageUrl,
+      'emoji': emoji,
+      'audio_url': audioUrl,
+    };
   }
 }
 

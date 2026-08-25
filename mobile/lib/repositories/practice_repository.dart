@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../core/network/dio_client.dart';
+import '../core/offline/pending_quiz_queue.dart';
 import '../models/practice_result.dart';
 
 class PracticeRepository {
-  const PracticeRepository(this._dio);
+  const PracticeRepository(this._dio, this._pendingQueue);
 
   final Dio _dio;
+  final PendingQuizQueue _pendingQueue;
 
   /// Uploads one recording for assessment.
   ///
@@ -57,6 +59,13 @@ class PracticeRepository {
   ///
   /// Rounds are scored on the device - the correct answer is known there - so
   /// only the tally is sent. The server bounds what it will accept.
+  ///
+  /// A failure that never reached the server (no connection, a timeout) also
+  /// queues the tally for a later retry - see `PendingQuizQueue` - but still
+  /// throws exactly the `ApiException` it always has. The caller
+  /// (`ChoiceSessionController`, unmodified) already treats that failure as
+  /// "the score is lost, not the session" and moves on; queueing just means
+  /// it usually isn't lost after all, without that caller needing to know.
   Future<QuizOutcome> submitQuizResult({
     required int profileId,
     required int lessonId,
@@ -77,8 +86,37 @@ class PracticeRepository {
       );
       return QuizOutcome.fromJson(response.data!);
     } on DioException catch (error) {
+      // No response at all reached the client - a connectivity problem, not
+      // a rejection - so it is worth queuing. A 4xx/5xx the server actually
+      // answered with is a real outcome and must not be replayed blindly.
+      if (error.response == null) {
+        await _pendingQueue.enqueue(
+          PendingQuizSubmission(
+            profileId: profileId,
+            lessonId: lessonId,
+            mode: mode,
+            correctCount: correctCount,
+            totalRounds: totalRounds,
+          ),
+        );
+      }
       throw ApiException.fromDio(error);
     }
+  }
+
+  /// Replays every queued submission, in order, stopping (and keeping the
+  /// rest queued) at the first one that still fails. Called whenever
+  /// connectivity is restored - see `SyncCoordinator`.
+  Future<void> flushPendingQuizResults() {
+    return _pendingQueue.flush(
+      (submission) => submitQuizResult(
+        profileId: submission.profileId,
+        lessonId: submission.lessonId,
+        mode: submission.mode,
+        correctCount: submission.correctCount,
+        totalRounds: submission.totalRounds,
+      ),
+    );
   }
 }
 
@@ -110,5 +148,8 @@ class QuizOutcome {
 }
 
 final practiceRepositoryProvider = Provider<PracticeRepository>((ref) {
-  return PracticeRepository(ref.watch(dioProvider));
+  return PracticeRepository(
+    ref.watch(dioProvider),
+    ref.watch(pendingQuizQueueProvider),
+  );
 });

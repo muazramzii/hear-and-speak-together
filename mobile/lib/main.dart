@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/offline/sync_coordinator.dart';
 import 'theme/theme.dart';
 import 'l10n/l10n.dart';
 import 'providers/locale_provider.dart';
@@ -16,6 +17,10 @@ class HearAndSpeakApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keeps the offline sync queue's connectivity listener alive for the
+    // whole app lifetime - see SyncCoordinator's docstring.
+    activateSyncCoordinator(ref);
+
     final router = ref.watch(routerProvider);
 
     // Null means "follow the device locale", which is the right default for a

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../core/network/dio_client.dart';
+import '../core/offline/offline_cache.dart';
 import '../models/progress.dart';
 
 /// A learner as seen by a parent or teacher.
@@ -44,9 +47,10 @@ class SupervisedStudent {
 }
 
 class StudentsRepository {
-  const StudentsRepository(this._dio);
+  const StudentsRepository(this._dio, this._cache);
 
   final Dio _dio;
+  final OfflineCache _cache;
 
   Future<List<SupervisedStudent>> fetchStudents() async {
     try {
@@ -63,13 +67,21 @@ class StudentsRepository {
     }
   }
 
+  /// Falls back to the last successful fetch when offline, so a parent can
+  /// still open a child's report with no connection - it just won't be
+  /// current until the next successful fetch overwrites it. The analytics
+  /// themselves are untouched; only the already-computed JSON is cached.
   Future<ProgressReport> fetchStudentProgress(int profileId) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/students/$profileId/progress/',
       );
-      return ProgressReport.fromJson(response.data!);
+      final data = response.data!;
+      unawaited(_cache.saveProgressReport(profileId, data).catchError((_) {}));
+      return ProgressReport.fromJson(data);
     } on DioException catch (error) {
+      final cached = await _cache.readProgressReport(profileId);
+      if (cached != null) return ProgressReport.fromJson(cached);
       throw ApiException.fromDio(error);
     }
   }
@@ -99,7 +111,10 @@ class StudentsRepository {
 }
 
 final studentsRepositoryProvider = Provider<StudentsRepository>((ref) {
-  return StudentsRepository(ref.watch(dioProvider));
+  return StudentsRepository(
+    ref.watch(dioProvider),
+    ref.watch(offlineCacheProvider),
+  );
 });
 
 final studentsProvider = FutureProvider.autoDispose<List<SupervisedStudent>>((

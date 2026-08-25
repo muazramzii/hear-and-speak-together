@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hear_speak_together/models/content.dart';
@@ -38,7 +39,12 @@ void main() {
         _harness(_word(image: 'https://example.com/cat.png', emoji: '🐱')),
       );
 
-      expect(find.byType(Image), findsOneWidget);
+      // The cached illustration widget is present (and takes priority over
+      // the emoji fallback) even before the network request resolves -
+      // CachedNetworkImage renders its own placeholder while loading rather
+      // than falling through to the emoji.
+      expect(find.byType(CachedNetworkImage), findsOneWidget);
+      expect(find.text('🐱'), findsNothing);
     });
   });
 

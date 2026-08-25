@@ -106,6 +106,9 @@ class _FakePracticeRepository implements PracticeRepository {
   }
 
   @override
+  Future<void> flushPendingQuizResults() async {}
+
+  @override
   Future<PracticeResult> evaluate({
     required int wordId,
     required int profileId,

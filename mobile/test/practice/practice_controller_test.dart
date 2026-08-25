@@ -92,6 +92,9 @@ class _FakeRepository implements PracticeRepository {
       newAchievements: [],
     );
   }
+
+  @override
+  Future<void> flushPendingQuizResults() async {}
 }
 
 PracticeController _controller(_FakeRecorder recorder, _FakeRepository repo) {
