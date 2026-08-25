@@ -20,6 +20,7 @@ class Role(models.TextChoices):
     STUDENT = "STUDENT", _("Student")
     PARENT = "PARENT", _("Parent")
     TEACHER = "TEACHER", _("Teacher")
+    SCHOOL_ADMIN = "SCHOOL_ADMIN", _("School admin")
 
 
 class LanguageCode(models.TextChoices):
@@ -56,6 +57,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=LanguageCode.choices,
         default=LanguageCode.ENGLISH,
         help_text=_("Language the app opens in and practises by default."),
+    )
+
+    # Phase 6: which School this account belongs to, if any. Null for
+    # every account that predates multi-tenancy, and for any account not
+    # affiliated with a school (a stand-alone parent, or a teacher who
+    # only follows students by share code - see apps.progress.StudentLink).
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.SET_NULL,
+        related_name="staff",
+        verbose_name=_("school"),
+        null=True,
+        blank=True,
     )
 
     # Django admin / permissions plumbing.
