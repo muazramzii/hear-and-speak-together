@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import School, TeacherInvitation
+from .models import Classroom, ClassroomMembership, ClassroomStaffRole, School, TeacherInvitation
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -120,3 +120,89 @@ class TeacherInvitationAcceptSerializer(serializers.Serializer):
 
     def validate_invitation_code(self, value):
         return value.strip().upper()
+
+
+class ClassroomMembershipSerializer(serializers.ModelSerializer):
+    """Read shape for one row of a classroom's staff list. No raw
+    `classroom` id - the membership is always read in the context of one
+    already-identified classroom, never browsed on its own."""
+
+    teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
+    teacher_name = serializers.CharField(source="teacher.name", read_only=True)
+    teacher_email = serializers.EmailField(source="teacher.email", read_only=True)
+
+    class Meta:
+        model = ClassroomMembership
+        fields = [
+            "teacher_id",
+            "teacher_name",
+            "teacher_email",
+            "role",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ClassroomMembershipWriteSerializer(serializers.Serializer):
+    """Input shape for `POST /api/classrooms/{id}/teachers/`."""
+
+    teacher_id = serializers.IntegerField()
+    role = serializers.ChoiceField(
+        choices=ClassroomStaffRole.choices, default=ClassroomStaffRole.LEAD_TEACHER
+    )
+
+
+class ClassroomStudentMoveSerializer(serializers.Serializer):
+    """Input shape for `POST /api/classrooms/{id}/students/`."""
+
+    profile_id = serializers.IntegerField()
+
+
+class ClassroomSerializer(serializers.ModelSerializer):
+    """List/summary read shape - everything except the staff roster,
+    which only the detail view includes (a list of many classrooms has no
+    use for each one's full staff list, and it would mean an extra query
+    per row)."""
+
+    student_count = serializers.IntegerField(source="students.count", read_only=True)
+
+    class Meta:
+        model = Classroom
+        fields = [
+            "id",
+            "name",
+            "classroom_code",
+            "is_active",
+            "student_count",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ClassroomDetailSerializer(ClassroomSerializer):
+    """`GET /api/classrooms/{id}/` - the list shape plus the assigned
+    staff list the brief calls for."""
+
+    staff = ClassroomMembershipSerializer(
+        source="staff_memberships", many=True, read_only=True
+    )
+
+    class Meta(ClassroomSerializer.Meta):
+        fields = ClassroomSerializer.Meta.fields + ["staff"]
+        read_only_fields = fields
+
+
+class ClassroomWriteSerializer(serializers.ModelSerializer):
+    """Create/update shape. `school` and `classroom_code` are never
+    accepted from the client - school comes from the authenticated
+    admin's own account, and the code is always generated, never chosen."""
+
+    class Meta:
+        model = Classroom
+        fields = ["id", "name", "is_active"]
+
+    def validate_name(self, value):
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("A classroom needs a name.")
+        return name

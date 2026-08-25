@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -5,10 +6,23 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.models import Role
+from apps.profiles.models import Profile
 
-from .models import TeacherInvitation
-from .permissions import IsSchoolAdmin, SchoolScopedQuerySet
+from .filters import ClassroomFilter
+from .models import Classroom, ClassroomMembership, TeacherInvitation
+from .permissions import (
+    IsClassroomTeacher,
+    IsSchoolAdmin,
+    IsTeacherOfSchool,
+    SchoolScopedQuerySet,
+)
 from .serializers import (
+    ClassroomDetailSerializer,
+    ClassroomMembershipSerializer,
+    ClassroomMembershipWriteSerializer,
+    ClassroomSerializer,
+    ClassroomStudentMoveSerializer,
+    ClassroomWriteSerializer,
     SchoolSerializer,
     SchoolWriteSerializer,
     TeacherInvitationAcceptSerializer,
@@ -232,3 +246,183 @@ class TeacherInvitationViewSet(
                 "accepted_at": invitation.accepted_at,
             }
         )
+
+
+class ClassroomViewSet(viewsets.ModelViewSet):
+    """/api/classrooms/
+
+    Read and write use different tenant boundaries, deliberately:
+
+    - `list`/`retrieve` accept any authenticated staff member of the
+      classroom's own school (`IsSchoolAdmin | IsTeacherOfSchool`) for the
+      queryset-level, cross-*school* boundary - "never expose another
+      school's classroom" - but `retrieve` additionally requires
+      `IsSchoolAdmin | IsClassroomTeacher` at the object level, so a
+      teacher can see their own school's classroom list (useful context,
+      e.g. for the `teacher` filter) without being able to open the
+      detail - staff roster included - of a classroom they are not
+      actually assigned to.
+    - Every write (create, update, soft-delete, staff assignment, student
+      transfer) is `IsSchoolAdmin` only, exactly as the brief specifies -
+      "Allow a School Admin to manage classrooms."
+
+    Nothing here re-implements a tenant check by hand: every boundary is
+    one of the Task 3 permission classes, or `SchoolScopedQuerySet`.
+    """
+
+    pagination_class = None
+    filterset_class = ClassroomFilter
+
+    def get_queryset(self):
+        school = self.request.user.school
+        if school is None:
+            return Classroom.objects.none()
+        return SchoolScopedQuerySet.classrooms_for_school(school).prefetch_related(
+            "staff_memberships__teacher"
+        )
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return ClassroomWriteSerializer
+        if self.action == "retrieve":
+            return ClassroomDetailSerializer
+        return ClassroomSerializer
+
+    def get_permissions(self):
+        if self.action == "list":
+            return [IsAuthenticated(), (IsSchoolAdmin | IsTeacherOfSchool)()]
+        if self.action == "retrieve":
+            return [IsAuthenticated(), (IsSchoolAdmin | IsClassroomTeacher)()]
+        return [IsAuthenticated(), IsSchoolAdmin()]
+
+    def create(self, request, *args, **kwargs):
+        write = self.get_serializer(data=request.data)
+        write.is_valid(raise_exception=True)
+        classroom = write.save(school=request.user.school)
+        return Response(
+            ClassroomDetailSerializer(classroom).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        write = self.get_serializer(instance, data=request.data, partial=partial)
+        write.is_valid(raise_exception=True)
+        write.save()
+        instance.refresh_from_db()
+        return Response(ClassroomDetailSerializer(instance).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft delete only: flips `is_active` to False. The row, its
+        memberships and its students' `classroom` links are never
+        touched - a deactivated classroom's history stays intact."""
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="teachers")
+    def add_teacher(self, request, pk=None):
+        classroom = self.get_object()
+        write = ClassroomMembershipWriteSerializer(data=request.data)
+        write.is_valid(raise_exception=True)
+        teacher_id = write.validated_data["teacher_id"]
+        role = write.validated_data["role"]
+
+        try:
+            teacher = get_user_model().objects.get(pk=teacher_id, role=Role.TEACHER)
+        except get_user_model().DoesNotExist:
+            return Response(
+                {"detail": "No teacher account with that id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if teacher.school_id != classroom.school_id:
+            return Response(
+                {"detail": "This teacher does not belong to this school."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ClassroomMembership.objects.filter(
+            classroom=classroom, teacher=teacher
+        ).exists():
+            return Response(
+                {"detail": "This teacher is already a member of this classroom."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ClassroomMembership.objects.create(
+            classroom=classroom, teacher=teacher, role=role
+        )
+        return Response(
+            ClassroomMembershipSerializer(
+                classroom.staff_memberships.select_related("teacher"), many=True
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"teachers/(?P<teacher_id>[^/.]+)",
+    )
+    def remove_teacher(self, request, pk=None, teacher_id=None):
+        """Removes the membership only - the teacher's own account is
+        never touched by this."""
+        classroom = self.get_object()
+        deleted, _ = ClassroomMembership.objects.filter(
+            classroom=classroom, teacher_id=teacher_id
+        ).delete()
+
+        if not deleted:
+            return Response(
+                {"detail": "This teacher is not a member of this classroom."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            ClassroomMembershipSerializer(
+                classroom.staff_memberships.select_related("teacher"), many=True
+            ).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="students")
+    def add_student(self, request, pk=None):
+        """Moves one student into this classroom.
+
+        "Student must belong to same school" only has a meaningful check
+        for a student who already belongs to a classroom somewhere - a
+        never-yet-enrolled `Profile` has no school to compare against, and
+        assigning it here for the first time is exactly what this action
+        is for. A student already enrolled in a *different* school's
+        classroom is rejected outright: moving them would silently take
+        them from a tenant this admin does not administer.
+        """
+        classroom = self.get_object()
+        write = ClassroomStudentMoveSerializer(data=request.data)
+        write.is_valid(raise_exception=True)
+        profile_id = write.validated_data["profile_id"]
+
+        try:
+            profile = Profile.objects.select_related("classroom__school").get(
+                pk=profile_id
+            )
+        except Profile.DoesNotExist:
+            return Response(
+                {"detail": "No student profile with that id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if (
+            profile.classroom_id is not None
+            and profile.classroom.school_id != classroom.school_id
+        ):
+            return Response(
+                {"detail": "This student belongs to a different school."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile.classroom = classroom
+        profile.save(update_fields=["classroom", "updated_at"])
+
+        return Response(ClassroomDetailSerializer(classroom).data)

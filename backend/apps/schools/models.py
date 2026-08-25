@@ -25,9 +25,10 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import Role
 
-# Excludes characters a teacher or admin would misread aloud: 0/O, 1/I/L.
-_CLASSROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-_CLASSROOM_CODE_LENGTH = 6
+# Letters exclude I/L/O and digits exclude 0/1 - characters a teacher or
+# admin would misread aloud or confuse with each other on a roster sheet.
+_CLASSROOM_CODE_LETTERS = "ABCDEFGHJKMNPQRSTUVWXYZ"
+_CLASSROOM_CODE_DIGITS = "23456789"
 
 # Deliberately the full alphabet (unlike the classroom code above): this
 # code is generated for, and read back by, a specific invited email
@@ -51,12 +52,16 @@ def default_invitation_expiry():
 
 
 def generate_classroom_code():
-    """A short code printable on a roster sheet - not a login credential,
-    just a human-friendly way to refer to a classroom."""
-    return "".join(
-        secrets.choice(_CLASSROOM_CODE_ALPHABET)
-        for _ in range(_CLASSROOM_CODE_LENGTH)
-    )
+    """A short, human-readable code printable on a roster sheet - not a
+    login credential. Format: three letters, a dash, three digits (e.g.
+    "ABC-294") - short enough to read aloud, and its shape makes it
+    instantly recognisable as "a classroom code" rather than an arbitrary
+    string. Only changes the callable's behaviour, not the field
+    (`CharField(max_length=12, unique=True)` already accommodates this
+    7-character format), so this is not a schema change."""
+    letters = "".join(secrets.choice(_CLASSROOM_CODE_LETTERS) for _ in range(3))
+    digits = "".join(secrets.choice(_CLASSROOM_CODE_DIGITS) for _ in range(3))
+    return f"{letters}-{digits}"
 
 
 class School(models.Model):

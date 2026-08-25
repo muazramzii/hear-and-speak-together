@@ -14,5 +14,6 @@ router.register(
     "schools/invitations", views.TeacherInvitationViewSet, basename="invitation"
 )
 router.register("schools", views.SchoolViewSet, basename="school")
+router.register("classrooms", views.ClassroomViewSet, basename="classroom")
 
 urlpatterns = router.urls
