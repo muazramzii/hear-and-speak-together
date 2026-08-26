@@ -221,6 +221,42 @@ discourage the behaviour the rewards exist to encourage.
 
 ---
 
+## School reporting and PDF export
+
+School Admin's printable reports (Phase 6, Task 9) generate PDFs entirely
+on-device with `package:pdf` and `package:printing` — the same approach
+Parent Mode's own report export already uses (`pdf_report_builder.dart`).
+There is no backend PDF endpoint: the school-wide and per-classroom builders
+(`school_pdf_report_builder.dart`, `classroom_pdf_report_builder.dart`)
+render straight from the same `GET /api/schools/analytics/*` responses the
+Reports screen already fetches, and `PdfPreview` (from `printing`) gives
+page-scrolling, print, and share for free before anything is exported.
+
+Two decisions worth stating:
+
+- **The date-range filter only narrows the Trend section.** `Last 7/30
+  days`, `This month`, and a custom start date all collapse to a `days`
+  count, because the trends endpoint is the only one that accepts a day
+  count at all (`?days=`). Overview's weekly/monthly averages and the
+  Weak Phonemes list keep their own fixed, server-defined windows rather
+  than pretending to honor a filter the API has no way to apply to them —
+  see `apps.schools.services.daily_trend`.
+- **Classroom scoping is a query parameter, not a new endpoint.** The
+  classroom report's weak-phonemes and recent-activity sections reuse the
+  school-wide endpoints with an added `?classroom_id=`, resolved through
+  `SchoolScopedQuerySet.classrooms_for_school` so a classroom id from
+  another school (or one that doesn't exist) yields an empty result rather
+  than another tenant's data or a leaked 404. No new analytics function
+  was written for this — `weakest_phonemes_for_profiles` and
+  `daily_trend_for_profiles` already accepted any profile queryset.
+
+The PDF's "Recommendations" section is rule-based phrasing over figures
+the report already shows (lowest-scoring classroom, weakest phoneme,
+zero activity today) — presentation logic, not a new scoring model, kept
+deliberately separate from `apps.progress.services.analytics`.
+
+---
+
 ## Development phases
 
 | Phase | Delivered |
