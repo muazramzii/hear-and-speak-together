@@ -215,3 +215,45 @@ class ClassroomWriteSerializer(serializers.ModelSerializer):
         if not name:
             raise serializers.ValidationError("A classroom needs a name.")
         return name
+
+
+class SchoolAnalyticsOverviewSerializer(serializers.Serializer):
+    """Read shape for `GET /api/schools/analytics/overview/`. Plain
+    `Serializer`, not `ModelSerializer` - this shape is a computed
+    summary from `apps.schools.services.overview`, not one row of any
+    single table."""
+
+    total_students = serializers.IntegerField()
+    total_teachers = serializers.IntegerField()
+    total_classrooms = serializers.IntegerField()
+    active_students_today = serializers.IntegerField()
+    weekly_average_score = serializers.IntegerField(allow_null=True)
+    monthly_average_score = serializers.IntegerField(allow_null=True)
+
+
+class ClassroomAnalyticsSerializer(serializers.Serializer):
+    """Read shape for one row of `GET /api/schools/analytics/classrooms/`."""
+
+    classroom_id = serializers.IntegerField()
+    classroom_name = serializers.CharField()
+    teacher_count = serializers.IntegerField()
+    student_count = serializers.IntegerField()
+    average_pronunciation_score = serializers.IntegerField()
+    completion_rate = serializers.FloatField()
+
+
+class PhonemeAnalyticsSerializer(serializers.Serializer):
+    """Read shape for one row of `GET /api/schools/analytics/phonemes/`."""
+
+    phoneme = serializers.CharField()
+    error_rate = serializers.IntegerField()
+    total_occurrences = serializers.IntegerField()
+    affected_students = serializers.IntegerField()
+
+
+class DailyTrendSerializer(serializers.Serializer):
+    """Read shape for one row of `GET /api/schools/analytics/trends/`."""
+
+    date = serializers.DateField()
+    attempts = serializers.IntegerField()
+    average_score = serializers.IntegerField()
