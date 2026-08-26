@@ -405,7 +405,10 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                                 ),
                               );
                             }
-                            return SchoolTrendBarChart(trend: trend);
+                            return SchoolTrendBarChart(
+                              trend: trend,
+                              title: '${range.label} Trend',
+                            );
                           },
                         ),
                         const SizedBox(height: 24),

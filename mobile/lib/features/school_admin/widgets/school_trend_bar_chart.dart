@@ -4,25 +4,38 @@ import '../../../models/school_analytics.dart';
 import '../../parent/design/parent_theme.dart';
 import '../../parent/widgets/parent_widgets.dart';
 
-/// The school-wide 7-day trend: one bar per day, oldest first, zero-height
-/// (not omitted) for a day with no attempts at all - `dailyTrendsProvider`
+/// The school-wide trend: one bar per day, oldest first, zero-height (not
+/// omitted) for a day with no attempts at all - `reportTrendProvider`
 /// already zero-fills every day server-side.
 ///
 /// Not `LineChartCard`: that widget buckets its `TrendPoint`s onto a
 /// Monday-Sunday calendar week (`daysFromMonday` relative to *this*
 /// week's Monday), which is the right model for Parent Mode's own
 /// "this week" chart but silently misplaces data for a genuinely rolling
-/// "last 7 days" window whenever today isn't Sunday. Rather than force a
-/// calendar-week shape onto rolling-window data (or edit a Parent Mode
-/// widget this task has no reason to touch), this is a small, new,
-/// same-style widget - no new chart package, just not this one specific
-/// reuse.
+/// window whenever today isn't Sunday. Rather than force a calendar-week
+/// shape onto rolling-window data (or edit a Parent Mode widget this task
+/// has no reason to touch), this is a small, new, same-style widget - no
+/// new chart package, just not this one specific reuse.
+///
+/// [trend] was fixed at exactly 7 rows when this widget was first built
+/// (Task 8); Task 9's date-range filter can now request up to 90, so
+/// [title] must reflect the actual selected range, and per-bar value/date
+/// labels are dropped past [_labelThreshold] rows - there is no room to
+/// print 90 of them legibly, matching the same threshold
+/// `SchoolPdfReportBuilder`'s own trend section uses for the same reason.
 class SchoolTrendBarChart extends StatelessWidget {
-  const SchoolTrendBarChart({super.key, required this.trend});
+  const SchoolTrendBarChart({super.key, required this.trend, this.title = '7-Day Trend'});
 
   /// Oldest first, exactly as `GET /api/schools/analytics/trends/` returns
   /// it.
   final List<DailyTrend> trend;
+
+  /// Shown above the chart - callers pass the selected date range's own
+  /// label (e.g. "Last 30 days Trend") rather than this leaving a stale
+  /// "7-Day" caption on a longer window.
+  final String title;
+
+  static const _labelThreshold = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +44,13 @@ class SchoolTrendBarChart extends StatelessWidget {
         .map((day) => day.averageScore)
         .fold(0, (a, b) => a > b ? a : b)
         .clamp(1, 100);
+    final showLabels = trend.length <= _labelThreshold;
 
     return AnalyticsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('7-Day Trend', style: Theme.of(context).textTheme.titleMedium),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 20),
           SizedBox(
             height: 130,
@@ -55,11 +69,12 @@ class SchoolTrendBarChart extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Text(
-                              day.attempts > 0 ? '${day.averageScore}' : '—',
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                            const SizedBox(height: 4),
+                            if (showLabels)
+                              Text(
+                                day.attempts > 0 ? '${day.averageScore}' : '—',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            if (showLabels) const SizedBox(height: 4),
                             RepaintBoundary(
                               child: TweenAnimationBuilder<double>(
                                 tween: Tween(
@@ -81,11 +96,12 @@ class SchoolTrendBarChart extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _shortDate(day.date),
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
+                            if (showLabels) const SizedBox(height: 6),
+                            if (showLabels)
+                              Text(
+                                _shortDate(day.date),
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
                           ],
                         ),
                       ),
@@ -94,6 +110,22 @@ class SchoolTrendBarChart extends StatelessWidget {
               ],
             ),
           ),
+          if (!showLabels) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _shortDate(trend.first.date),
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                Text(
+                  _shortDate(trend.last.date),
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
