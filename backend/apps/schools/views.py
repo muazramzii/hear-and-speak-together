@@ -27,6 +27,7 @@ from .serializers import (
     ClassroomSerializer,
     ClassroomStudentMoveSerializer,
     ClassroomWriteSerializer,
+    ClassroomAnalyticsSerializer,
     SchoolAnalyticsOverviewSerializer,
     SchoolSerializer,
     SchoolWriteSerializer,
@@ -497,3 +498,17 @@ class SchoolAnalyticsOverviewView(_SchoolAnalyticsView):
 
         data = school_analytics.overview(school)
         return Response(SchoolAnalyticsOverviewSerializer(data).data)
+
+
+class SchoolAnalyticsClassroomsView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/classrooms/ - already ordered by
+    classroom name (`apps.progress.services.analytics.classroom_breakdown`
+    sorts before returning)."""
+
+    def get(self, request):
+        school = request.user.school
+        if school is None:
+            return Response([])
+
+        rows = school_analytics.classroom_breakdown(school)
+        return Response(ClassroomAnalyticsSerializer(rows, many=True).data)
