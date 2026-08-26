@@ -361,8 +361,91 @@ the top error type. No name, no email, no account id, no audio.
 
 ---
 
+## School Analytics
+
+Phase 6 (multi-tenant schools), Task 7. SCHOOL_ADMIN-only, and the school is
+always the caller's own (`request.user.school`) — none of these URLs take an
+id, so there is nothing to guess or leak another school's data through.
+Every figure is computed by `apps.progress.services.analytics`'s existing,
+per-learner-tested aggregation logic run over a group of profiles instead of
+one — a school's average score and a single learner's average score are the
+same calculation, not two implementations that could quietly disagree.
+
+A student in a deactivated classroom, and everything they attempted, is
+excluded from all four endpoints below — a soft-deleted classroom's history
+stays in the database (classroom deactivation is a soft delete, never a row
+removal) but stops inflating the school's *live* numbers.
+
+An admin with no school yet (has not completed the Task 4 "create a school"
+step) gets a valid, empty response from every endpoint below — zeros and
+empty lists — never an error.
+
+### `GET /api/schools/analytics/overview/`
+
+```json
+{
+  "total_students": 42,
+  "total_teachers": 6,
+  "total_classrooms": 4,
+  "active_students_today": 11,
+  "weekly_average_score": 78,
+  "monthly_average_score": 74
+}
+```
+
+`weekly_average_score`/`monthly_average_score` are `null` when there is no
+scored attempt in that window at all, not `0` — a school that hasn't
+practised yet has no average, rather than a misleadingly bad one.
+
+### `GET /api/schools/analytics/classrooms/`
+
+Ordered by classroom name. `completion_rate` is the average of
+`LessonProgress.completion_percentage` across the classroom's students — the
+same derived figure a parent's per-lesson progress list already shows, not a
+new definition of "complete."
+
+```json
+[
+  {
+    "classroom_id": 3, "classroom_name": "Classroom Alpha",
+    "teacher_count": 1, "student_count": 12,
+    "average_pronunciation_score": 81, "completion_rate": 64.5
+  }
+]
+```
+
+### `GET /api/schools/analytics/phonemes/`
+
+Top 10 weakest sounds school-wide, worst `error_rate` first. Reuses the exact
+substitution-rate definition and `MIN_PHONEME_OCCURRENCES` threshold the
+per-learner "weak phonemes" feature already uses — a sound only appears once
+it has a trustworthy sample size across the school, not after one unlucky
+recording.
+
+```json
+[
+  { "phoneme": "th", "error_rate": 62, "total_occurrences": 18, "affected_students": 9 }
+]
+```
+
+### `GET /api/schools/analytics/trends/`
+
+The last 7 days, oldest first. Every day appears even with zero attempts —
+unlike a single learner's own trend chart (where a quiet day is omitted as
+uninformative), a school-wide chart is read by an admin looking for
+drop-offs, so a quiet day is exactly what this endpoint must surface.
+
+```json
+[
+  { "date": "2026-08-20", "attempts": 0, "average_score": 0 },
+  { "date": "2026-08-21", "attempts": 14, "average_score": 79 }
+]
+```
+
+---
+
 ## Not yet implemented
 
-Progress aggregates, the dashboard, achievements and the parent/teacher
-student endpoints arrive in later phases and are documented here once they
-exist.
+School, Classroom and Teacher Invitation management (Phase 6, Tasks 4–6) and
+the parent/teacher student endpoints arrive from earlier Phase 6 work and are
+documented here once this reference catches up to them.
