@@ -1725,11 +1725,11 @@ class SchoolAnalyticsAPITests(APITestCase):
         response = self.client.get("/api/schools/analytics/trends/")
 
         rows = response.json()
-        today = str(timezone.localdate())
-        zero_days = [row for row in rows if row["date"] != today and row["attempts"] == 0]
-        # Every day in the 7-day window except "today" and 3-days-ago had
-        # no School A activity at all, and must still appear as a row.
-        self.assertGreaterEqual(len(zero_days), 4)
+        # The 7-day window is today, -1, -2, -3, -4, -5, -6. School A has
+        # attempts only on "today" (2) and "-3 days" (1) - the other five
+        # days must appear as real zero rows, not be missing or folded in.
+        zero_day_count = sum(1 for row in rows if row["attempts"] == 0)
+        self.assertEqual(zero_day_count, 5)
 
     def test_trends_computes_average_score_for_an_active_day(self):
         self.authenticate(self.admin_a)
