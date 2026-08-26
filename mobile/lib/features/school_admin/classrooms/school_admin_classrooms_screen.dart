@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,11 +23,25 @@ class SchoolAdminClassroomsScreen extends ConsumerStatefulWidget {
 class _SchoolAdminClassroomsScreenState
     extends ConsumerState<SchoolAdminClassroomsScreen> {
   final _search = TextEditingController();
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  /// `classroomsProvider` refetches from the API on every state change to
+  /// `classroomListFilterProvider` - without this, every single keystroke
+  /// while typing a search query would fire its own network request.
+  void _onSearchChanged(String value, ClassroomListFilter filter) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      ref.read(classroomListFilterProvider.notifier).state = filter.copyWith(
+        search: value,
+      );
+    });
   }
 
   @override
@@ -62,10 +78,7 @@ class _SchoolAdminClassroomsScreenState
                   ),
                   isDense: true,
                 ),
-                onChanged: (value) {
-                  ref.read(classroomListFilterProvider.notifier).state = filter
-                      .copyWith(search: value);
-                },
+                onChanged: (value) => _onSearchChanged(value, filter),
               ),
             ),
             Padding(
@@ -199,7 +212,7 @@ class _ClassroomCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
@@ -234,7 +247,7 @@ class _ClassroomCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
