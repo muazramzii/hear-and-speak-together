@@ -28,6 +28,7 @@ from .serializers import (
     ClassroomStudentMoveSerializer,
     ClassroomWriteSerializer,
     ClassroomAnalyticsSerializer,
+    PhonemeAnalyticsSerializer,
     SchoolAnalyticsOverviewSerializer,
     SchoolSerializer,
     SchoolWriteSerializer,
@@ -512,3 +513,16 @@ class SchoolAnalyticsClassroomsView(_SchoolAnalyticsView):
 
         rows = school_analytics.classroom_breakdown(school)
         return Response(ClassroomAnalyticsSerializer(rows, many=True).data)
+
+
+class SchoolAnalyticsPhonemesView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/phonemes/ - top 10 weakest sounds
+    school-wide, worst first."""
+
+    def get(self, request):
+        school = request.user.school
+        if school is None:
+            return Response([])
+
+        rows = school_analytics.weakest_phonemes(school, limit=10)
+        return Response(PhonemeAnalyticsSerializer(rows, many=True).data)
