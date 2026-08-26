@@ -137,7 +137,12 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => Center(
+        child: Semantics(
+          label: 'Preparing classroom report',
+          child: const CircularProgressIndicator(),
+        ),
+      ),
     );
 
     try {
@@ -249,10 +254,7 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                     child: ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        Text(
-                          'Overview',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                        const _SectionTitle('Overview'),
                         const SizedBox(height: 12),
                         AnalyticsCard(
                           child: Row(
@@ -284,10 +286,7 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        Text(
-                          'Classroom Performance',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                        const _SectionTitle('Classroom Performance'),
                         const SizedBox(height: 12),
                         classroomsAsync.when(
                           loading: () =>
@@ -333,10 +332,7 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        Text(
-                          'Weak Phonemes',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                        const _SectionTitle('Weak Phonemes'),
                         const SizedBox(height: 12),
                         phonemesAsync.when(
                           loading: () =>
@@ -379,12 +375,13 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        Text(
-                          'Trend',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                        const _SectionTitle('Trend'),
                         const SizedBox(height: 12),
-                        _ReportRangeFilter(current: range),
+                        Semantics(
+                          container: true,
+                          label: 'Filter the trend chart by date range',
+                          child: _ReportRangeFilter(current: range),
+                        ),
                         const SizedBox(height: 12),
                         trendAsync.when(
                           loading: () =>
@@ -413,10 +410,7 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        Text(
-                          'Completion Rate',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
+                        const _SectionTitle('Completion Rate'),
                         const SizedBox(height: 12),
                         classroomsAsync.when(
                           loading: () =>
@@ -472,6 +466,23 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
 }
 
 enum _ExportChoice { school, classroom }
+
+/// A section heading, marked as a semantics header so a screen-reader
+/// user can jump between report sections the same way a sighted user
+/// scans the page visually.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      header: true,
+      child: Text(text, style: Theme.of(context).textTheme.titleLarge),
+    );
+  }
+}
 
 class _ReportsSkeleton extends StatelessWidget {
   const _ReportsSkeleton();
@@ -563,9 +574,12 @@ class _ClassroomPickerSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(
-              'Select a classroom',
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Select a classroom',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
           ),
           for (final classroom in classrooms)
