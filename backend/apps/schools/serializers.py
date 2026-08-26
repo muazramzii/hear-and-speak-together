@@ -125,16 +125,19 @@ class TeacherInvitationAcceptSerializer(serializers.Serializer):
 class ClassroomMembershipSerializer(serializers.ModelSerializer):
     """Read shape for one row of a classroom's staff list. No raw
     `classroom` id - the membership is always read in the context of one
-    already-identified classroom, never browsed on its own."""
+    already-identified classroom, never browsed on its own. `teacher` is
+    the account's `public_id` (a UUID), never its integer primary key -
+    that stays completely internal, per the Phase 6 architecture
+    correction."""
 
-    teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
+    teacher = serializers.UUIDField(source="teacher.public_id", read_only=True)
     teacher_name = serializers.CharField(source="teacher.name", read_only=True)
     teacher_email = serializers.EmailField(source="teacher.email", read_only=True)
 
     class Meta:
         model = ClassroomMembership
         fields = [
-            "teacher_id",
+            "teacher",
             "teacher_name",
             "teacher_email",
             "role",
@@ -144,9 +147,15 @@ class ClassroomMembershipSerializer(serializers.ModelSerializer):
 
 
 class ClassroomMembershipWriteSerializer(serializers.Serializer):
-    """Input shape for `POST /api/classrooms/{id}/teachers/`."""
+    """Input shape for `POST /api/classrooms/{id}/teachers/`.
 
-    teacher_id = serializers.IntegerField()
+    `teacher` is the account's public UUID (`User.public_id`), resolved
+    to a `User` inside the view - never the integer primary key. See the
+    Phase 6 architecture correction: an API must not expose or accept a
+    database id for referencing an account.
+    """
+
+    teacher = serializers.UUIDField()
     role = serializers.ChoiceField(
         choices=ClassroomStaffRole.choices, default=ClassroomStaffRole.LEAD_TEACHER
     )

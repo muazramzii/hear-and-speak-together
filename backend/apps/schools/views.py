@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -327,11 +329,13 @@ class ClassroomViewSet(viewsets.ModelViewSet):
         classroom = self.get_object()
         write = ClassroomMembershipWriteSerializer(data=request.data)
         write.is_valid(raise_exception=True)
-        teacher_id = write.validated_data["teacher_id"]
+        teacher_public_id = write.validated_data["teacher"]
         role = write.validated_data["role"]
 
         try:
-            teacher = get_user_model().objects.get(pk=teacher_id, role=Role.TEACHER)
+            teacher = get_user_model().objects.get(
+                public_id=teacher_public_id, role=Role.TEACHER
+            )
         except get_user_model().DoesNotExist:
             return Response(
                 {"detail": "No teacher account with that id."},
@@ -364,14 +368,24 @@ class ClassroomViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["delete"],
-        url_path=r"teachers/(?P<teacher_id>[^/.]+)",
+        url_path=r"teachers/(?P<teacher_public_id>[^/.]+)",
     )
-    def remove_teacher(self, request, pk=None, teacher_id=None):
+    def remove_teacher(self, request, pk=None, teacher_public_id=None):
         """Removes the membership only - the teacher's own account is
-        never touched by this."""
+        never touched by this. Addressed by the teacher's public UUID,
+        like every other reference to an account in this API - never the
+        integer primary key."""
         classroom = self.get_object()
+        try:
+            teacher_public_id = uuid.UUID(str(teacher_public_id))
+        except ValueError:
+            return Response(
+                {"detail": "This teacher is not a member of this classroom."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         deleted, _ = ClassroomMembership.objects.filter(
-            classroom=classroom, teacher_id=teacher_id
+            classroom=classroom, teacher__public_id=teacher_public_id
         ).delete()
 
         if not deleted:
@@ -422,7 +436,23 @@ class ClassroomViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Captured before the reassignment - Task 6 only updates the
+        # pointer, it does not record this anywhere. The previous
+        # classroom is returned so the caller has confirmation of what
+        # just changed; Task 7 is where an actual transfer-history record
+        # gets introduced.
+        previous_classroom = profile.classroom
+
         profile.classroom = classroom
         profile.save(update_fields=["classroom", "updated_at"])
 
-        return Response(ClassroomDetailSerializer(classroom).data)
+        return Response(
+            {
+                "previous_classroom": (
+                    ClassroomSerializer(previous_classroom).data
+                    if previous_classroom is not None
+                    else None
+                ),
+                "classroom": ClassroomDetailSerializer(classroom).data,
+            }
+        )
