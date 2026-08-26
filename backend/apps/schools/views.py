@@ -480,25 +480,16 @@ class _SchoolAnalyticsView(APIView):
 
 
 class SchoolAnalyticsOverviewView(_SchoolAnalyticsView):
-    """GET /api/schools/analytics/overview/"""
+    """GET /api/schools/analytics/overview/
+
+    No special-casing for `request.user.school is None` here - every
+    `school_analytics` function accepts `None` and returns its own empty
+    shape, so this view (and the three below) never need to know or
+    duplicate what "no data yet" looks like.
+    """
 
     def get(self, request):
-        school = request.user.school
-        if school is None:
-            return Response(
-                SchoolAnalyticsOverviewSerializer(
-                    {
-                        "total_students": 0,
-                        "total_teachers": 0,
-                        "total_classrooms": 0,
-                        "active_students_today": 0,
-                        "weekly_average_score": None,
-                        "monthly_average_score": None,
-                    }
-                ).data
-            )
-
-        data = school_analytics.overview(school)
+        data = school_analytics.overview(request.user.school)
         return Response(SchoolAnalyticsOverviewSerializer(data).data)
 
 
@@ -508,11 +499,7 @@ class SchoolAnalyticsClassroomsView(_SchoolAnalyticsView):
     sorts before returning)."""
 
     def get(self, request):
-        school = request.user.school
-        if school is None:
-            return Response([])
-
-        rows = school_analytics.classroom_breakdown(school)
+        rows = school_analytics.classroom_breakdown(request.user.school)
         return Response(ClassroomAnalyticsSerializer(rows, many=True).data)
 
 
@@ -521,11 +508,7 @@ class SchoolAnalyticsPhonemesView(_SchoolAnalyticsView):
     school-wide, worst first."""
 
     def get(self, request):
-        school = request.user.school
-        if school is None:
-            return Response([])
-
-        rows = school_analytics.weakest_phonemes(school, limit=10)
+        rows = school_analytics.weakest_phonemes(request.user.school, limit=10)
         return Response(PhonemeAnalyticsSerializer(rows, many=True).data)
 
 
@@ -534,9 +517,5 @@ class SchoolAnalyticsTrendsView(_SchoolAnalyticsView):
     for any day with no activity at all."""
 
     def get(self, request):
-        school = request.user.school
-        if school is None:
-            return Response([])
-
-        rows = school_analytics.daily_trend(school, days=7)
+        rows = school_analytics.daily_trend(request.user.school, days=7)
         return Response(DailyTrendSerializer(rows, many=True).data)

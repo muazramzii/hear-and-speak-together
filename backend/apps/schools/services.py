@@ -29,14 +29,33 @@ def _active_profiles_for_school(school):
     return Profile.objects.filter(classroom__school=school, classroom__is_active=True)
 
 
+_EMPTY_OVERVIEW = {
+    "total_students": 0,
+    "total_teachers": 0,
+    "total_classrooms": 0,
+    "active_students_today": 0,
+    "weekly_average_score": None,
+    "monthly_average_score": None,
+}
+
+
 def overview(school):
-    """Headline numbers for `GET /api/schools/analytics/overview/`."""
+    """Headline numbers for `GET /api/schools/analytics/overview/`.
+
+    `school=None` (an admin who has not completed the Task 4 "create a
+    school" step yet) returns this same zeroed shape rather than the
+    view having to know and duplicate it - one source of truth for what
+    "no data yet" looks like.
+    """
+    if school is None:
+        return dict(_EMPTY_OVERVIEW)
+
     profiles = _active_profiles_for_school(school)
     classrooms = SchoolScopedQuerySet.classrooms_for_school(school).filter(
         is_active=True
     )
     teachers = SchoolScopedQuerySet.users_for_school(school).filter(
-        role=Role.TEACHER
+        role=Role.TEACHER, is_active=True
     )
 
     summary = progress_analytics.group_score_summary(profiles)
@@ -51,6 +70,9 @@ def overview(school):
 
 def classroom_breakdown(school):
     """Per-classroom rows for `GET /api/schools/analytics/classrooms/`."""
+    if school is None:
+        return []
+
     classrooms = SchoolScopedQuerySet.classrooms_for_school(school).filter(
         is_active=True
     )
@@ -59,11 +81,17 @@ def classroom_breakdown(school):
 
 def weakest_phonemes(school, limit=10):
     """Top weakest sounds for `GET /api/schools/analytics/phonemes/`."""
+    if school is None:
+        return []
+
     profiles = _active_profiles_for_school(school)
     return progress_analytics.weakest_phonemes_for_profiles(profiles, limit=limit)
 
 
 def daily_trend(school, days=7):
     """Day-by-day rows for `GET /api/schools/analytics/trends/`."""
+    if school is None:
+        return []
+
     profiles = _active_profiles_for_school(school)
     return progress_analytics.daily_trend_for_profiles(profiles, days=days)
