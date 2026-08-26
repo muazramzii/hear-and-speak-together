@@ -441,6 +441,7 @@ class _ClassroomsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 4,
       separatorBuilder: (_, _) => const SizedBox(height: 12),

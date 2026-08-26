@@ -71,6 +71,14 @@ class SchoolAdminDashboardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
+      // Both required together: this skeleton is used both as a
+      // full-screen loading state (inside an `Expanded`, where it has
+      // real bounded height) and nested as a single item inside another
+      // `ListView` (the Dashboard's overview section while the school
+      // itself has already loaded) - a plain `ListView` has no intrinsic
+      // height in that second case and crashes with "unbounded height"
+      // without `shrinkWrap`.
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
         const SkeletonBox(width: 160, height: 24),
