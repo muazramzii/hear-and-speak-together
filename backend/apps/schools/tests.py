@@ -1213,20 +1213,23 @@ class ClassroomAPITests(APITestCase):
 
         response = self.client.post(
             f"/api/classrooms/{self.classroom_a2.id}/teachers/",
-            {"teacher_id": self.teacher_a2.id, "role": "LEAD_TEACHER"},
+            {"teacher": str(self.teacher_a2.public_id), "role": "LEAD_TEACHER"},
             format="json",
         )
 
         self.assertEqual(response.status_code, 201)
         roles = {row["role"] for row in response.json()}
         self.assertIn("LEAD_TEACHER", roles)
+        # The integer primary key must never appear in the response.
+        self.assertNotIn("teacher_id", response.json()[0])
+        self.assertEqual(response.json()[0]["teacher"], str(self.teacher_a2.public_id))
 
     def test_admin_can_assign_assistant(self):
         self.authenticate(self.admin_a)
 
         response = self.client.post(
             f"/api/classrooms/{self.classroom_a1.id}/teachers/",
-            {"teacher_id": self.teacher_a2.id, "role": "ASSISTANT"},
+            {"teacher": str(self.teacher_a2.public_id), "role": "ASSISTANT"},
             format="json",
         )
 
@@ -1239,7 +1242,7 @@ class ClassroomAPITests(APITestCase):
 
         response = self.client.post(
             f"/api/classrooms/{self.classroom_a1.id}/teachers/",
-            {"teacher_id": self.teacher_a2.id, "role": "THERAPIST"},
+            {"teacher": str(self.teacher_a2.public_id), "role": "THERAPIST"},
             format="json",
         )
 
@@ -1252,7 +1255,7 @@ class ClassroomAPITests(APITestCase):
 
         response = self.client.post(
             f"/api/classrooms/{self.classroom_a1.id}/teachers/",
-            {"teacher_id": self.teacher_a1.id, "role": "ASSISTANT"},
+            {"teacher": str(self.teacher_a1.public_id), "role": "ASSISTANT"},
             format="json",
         )
 
@@ -1269,7 +1272,7 @@ class ClassroomAPITests(APITestCase):
 
         response = self.client.post(
             f"/api/classrooms/{self.classroom_a1.id}/teachers/",
-            {"teacher_id": self.teacher_b.id, "role": "LEAD_TEACHER"},
+            {"teacher": str(self.teacher_b.public_id), "role": "LEAD_TEACHER"},
             format="json",
         )
 
@@ -1279,7 +1282,7 @@ class ClassroomAPITests(APITestCase):
         self.authenticate(self.admin_a)
 
         response = self.client.delete(
-            f"/api/classrooms/{self.classroom_a1.id}/teachers/{self.teacher_a1.id}/"
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/{self.teacher_a1.public_id}/"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1291,6 +1294,15 @@ class ClassroomAPITests(APITestCase):
         # The teacher's own account must survive - only the membership
         # row is removed.
         self.assertTrue(User.objects.filter(id=self.teacher_a1.id).exists())
+
+    def test_removing_teacher_with_a_malformed_uuid_is_not_found(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.delete(
+            f"/api/classrooms/{self.classroom_a1.id}/teachers/not-a-uuid/"
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     # -- student transfer -------------------------------------------------
 
@@ -1306,6 +1318,9 @@ class ClassroomAPITests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.unenrolled_profile.refresh_from_db()
         self.assertEqual(self.unenrolled_profile.classroom_id, self.classroom_a2.id)
+        body = response.json()
+        self.assertIsNone(body["previous_classroom"])
+        self.assertEqual(body["classroom"]["id"], self.classroom_a2.id)
 
     def test_admin_can_move_a_student_between_classrooms_in_the_same_school(self):
         self.authenticate(self.admin_a)
@@ -1319,6 +1334,11 @@ class ClassroomAPITests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.enrolled_profile.refresh_from_db()
         self.assertEqual(self.enrolled_profile.classroom_id, self.classroom_a2.id)
+        body = response.json()
+        # Confirmation of what changed: the classroom the student moved
+        # *out of* is named, not just the one they moved into.
+        self.assertEqual(body["previous_classroom"]["id"], self.classroom_a1.id)
+        self.assertEqual(body["classroom"]["id"], self.classroom_a2.id)
 
     def test_moving_a_student_from_a_different_school_is_rejected(self):
         self.authenticate(self.admin_a)

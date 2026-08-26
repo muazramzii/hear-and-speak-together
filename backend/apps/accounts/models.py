@@ -5,6 +5,8 @@ Children, parents and teachers all share one table and are distinguished by
 benefit at this scale.
 """
 
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
@@ -44,6 +46,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     name = models.CharField(_("name"), max_length=120)
     email = models.EmailField(_("email address"), unique=True)
+
+    # A stable, non-sequential public reference for this account. The
+    # integer `id` primary key must never appear in an API request or
+    # response - anywhere a client needs to name a specific user (Phase 6
+    # classroom staff assignment, and any future case), this is the value
+    # that identifies them instead.
+    public_id = models.UUIDField(
+        _("public id"), default=uuid.uuid4, unique=True, editable=False
+    )
 
     role = models.CharField(
         _("role"),

@@ -58,10 +58,21 @@ def generate_classroom_code():
     instantly recognisable as "a classroom code" rather than an arbitrary
     string. Only changes the callable's behaviour, not the field
     (`CharField(max_length=12, unique=True)` already accommodates this
-    7-character format), so this is not a schema change."""
-    letters = "".join(secrets.choice(_CLASSROOM_CODE_LETTERS) for _ in range(3))
-    digits = "".join(secrets.choice(_CLASSROOM_CODE_DIGITS) for _ in range(3))
-    return f"{letters}-{digits}"
+    7-character format), so this is not a schema change.
+
+    Checks the database and regenerates on collision rather than trusting
+    the format's ~6.2 million combinations to never repeat - the format
+    is deliberately short and readable, not long enough to make collision
+    astronomically improbable, so this loop is the actual uniqueness
+    guarantee, and the field's `unique=True` is the backstop if two
+    requests ever raced each other past this check at the same instant.
+    """
+    while True:
+        letters = "".join(secrets.choice(_CLASSROOM_CODE_LETTERS) for _ in range(3))
+        digits = "".join(secrets.choice(_CLASSROOM_CODE_DIGITS) for _ in range(3))
+        code = f"{letters}-{digits}"
+        if not Classroom.objects.filter(classroom_code=code).exists():
+            return code
 
 
 class School(models.Model):
