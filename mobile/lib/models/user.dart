@@ -2,7 +2,8 @@
 enum UserRole {
   student('STUDENT'),
   parent('PARENT'),
-  teacher('TEACHER');
+  teacher('TEACHER'),
+  schoolAdmin('SCHOOL_ADMIN');
 
   const UserRole(this.value);
 
@@ -18,6 +19,12 @@ enum UserRole {
   /// Parents and teachers share the monitoring shell.
   bool get supervisesStudents =>
       this == UserRole.parent || this == UserRole.teacher;
+
+  /// The multi-tenant School Admin workspace (Phase 6) - mutually
+  /// exclusive with `supervisesStudents` on the backend's own `Role`
+  /// enum, so routing can treat this as a third, separate branch rather
+  /// than folding it into that check.
+  bool get isSchoolAdmin => this == UserRole.schoolAdmin;
 }
 
 /// The languages the app teaches. Mirrors the backend's `LanguageCode`.
