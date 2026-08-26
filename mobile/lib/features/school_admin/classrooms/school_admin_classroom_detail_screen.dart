@@ -568,6 +568,7 @@ class _DetailSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: const [
         SkeletonBox(height: 100, borderRadius: 16),
