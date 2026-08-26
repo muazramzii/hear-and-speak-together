@@ -54,6 +54,11 @@ dependencies:
   cached_network_image: ^3.4.1
   connectivity_plus: ^6.1.0
 
+  # Phase 6 Task 8: lets a School Admin pick an image file for the school
+  # logo. The only new dependency this task adds - everything else reuses
+  # existing packages.
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
