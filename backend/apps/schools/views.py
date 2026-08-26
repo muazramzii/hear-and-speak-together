@@ -6,10 +6,12 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.models import Role
 from apps.profiles.models import Profile
 
+from . import services as school_analytics
 from .filters import ClassroomFilter
 from .models import Classroom, ClassroomMembership, TeacherInvitation
 from .permissions import (
@@ -25,6 +27,7 @@ from .serializers import (
     ClassroomSerializer,
     ClassroomStudentMoveSerializer,
     ClassroomWriteSerializer,
+    SchoolAnalyticsOverviewSerializer,
     SchoolSerializer,
     SchoolWriteSerializer,
     TeacherInvitationAcceptSerializer,
@@ -456,3 +459,41 @@ class ClassroomViewSet(viewsets.ModelViewSet):
                 "classroom": ClassroomDetailSerializer(classroom).data,
             }
         )
+
+
+class _SchoolAnalyticsView(APIView):
+    """Shared base for the four `/api/schools/analytics/...` endpoints.
+
+    SCHOOL_ADMIN-only, and there is no id to guess in any of these URLs -
+    the school is always `request.user.school`, never a client-supplied
+    parameter, which is what makes "no cross-tenant leakage" true by
+    construction rather than by a queryset filter that could be gotten
+    wrong. A request from an admin with no school at all (never having
+    created one) gets an empty-but-valid response, not an error - Task 4
+    already made a `School` the very first thing an admin creates.
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+
+
+class SchoolAnalyticsOverviewView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/overview/"""
+
+    def get(self, request):
+        school = request.user.school
+        if school is None:
+            return Response(
+                SchoolAnalyticsOverviewSerializer(
+                    {
+                        "total_students": 0,
+                        "total_teachers": 0,
+                        "total_classrooms": 0,
+                        "active_students_today": 0,
+                        "weekly_average_score": None,
+                        "monthly_average_score": None,
+                    }
+                ).data
+            )
+
+        data = school_analytics.overview(school)
+        return Response(SchoolAnalyticsOverviewSerializer(data).data)
