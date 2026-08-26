@@ -409,39 +409,68 @@ def classroom_breakdown(classrooms):
     `LessonProgress.completion_percentage` directly (the same derived
     figure the per-learner lesson list already shows) rather than
     inventing a second definition of "complete."
+
+    Four queries total, however many classrooms are passed in - not four
+    per classroom. An earlier version queried once per classroom inside
+    the loop below; harmless for the handful of classrooms one school
+    has, but a real N+1 all the same, so it's grouped up front instead.
     """
     from apps.schools.models import ClassroomMembership
 
-    rows = []
-    for classroom in classrooms:
-        students = Profile.objects.filter(classroom=classroom)
-        average = _scored_attempts_for_profiles(students).aggregate(
-            average=Avg("pronunciation_score")
-        )["average"]
+    classroom_list = list(classrooms)
+    if not classroom_list:
+        return []
 
-        lesson_records = list(LessonProgress.objects.filter(profile__in=students))
-        completion_rate = (
-            round(
-                sum(record.completion_percentage for record in lesson_records)
-                / len(lesson_records),
-                1,
-            )
-            if lesson_records
-            else 0.0
+    classroom_ids = [classroom.id for classroom in classroom_list]
+
+    student_counts = Counter(
+        Profile.objects.filter(classroom_id__in=classroom_ids).values_list(
+            "classroom_id", flat=True
         )
+    )
+    teacher_counts = Counter(
+        ClassroomMembership.objects.filter(
+            classroom_id__in=classroom_ids
+        ).values_list("classroom_id", flat=True)
+    )
+    average_by_classroom = {
+        row["profile__classroom_id"]: row["average"]
+        for row in (
+            PracticeAttempt.objects.filter(
+                profile__classroom_id__in=classroom_ids,
+                pronunciation_score__isnull=False,
+            )
+            .values("profile__classroom_id")
+            .annotate(average=Avg("pronunciation_score"))
+        )
+    }
+    completion_by_classroom = defaultdict(list)
+    for record in LessonProgress.objects.filter(
+        profile__classroom_id__in=classroom_ids
+    ).select_related("profile"):
+        completion_by_classroom[record.profile.classroom_id].append(
+            record.completion_percentage
+        )
+
+    rows = []
+    for classroom in classroom_list:
+        percentages = completion_by_classroom.get(classroom.id, [])
+        average = average_by_classroom.get(classroom.id)
 
         rows.append(
             {
                 "classroom_id": classroom.id,
                 "classroom_name": classroom.name,
-                "teacher_count": ClassroomMembership.objects.filter(
-                    classroom=classroom
-                ).count(),
-                "student_count": students.count(),
+                "teacher_count": teacher_counts.get(classroom.id, 0),
+                "student_count": student_counts.get(classroom.id, 0),
                 "average_pronunciation_score": (
                     round(average) if average is not None else 0
                 ),
-                "completion_rate": completion_rate,
+                "completion_rate": (
+                    round(sum(percentages) / len(percentages), 1)
+                    if percentages
+                    else 0.0
+                ),
             }
         )
 
