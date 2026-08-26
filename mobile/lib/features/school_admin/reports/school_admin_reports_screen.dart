@@ -87,28 +87,38 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
       logoBytes = await _fetchLogoBytes(ref.read(dioProvider), school.logo!);
     }
 
-    final generatedAt = DateTime.now();
-    final bytes = await SchoolPdfReportBuilder.buildBytes(
-      school: school,
-      overview: overview,
-      classrooms: classrooms,
-      phonemes: phonemes,
-      trend: trend,
-      range: range,
-      generatedAt: generatedAt,
-      logoBytes: logoBytes,
-    );
+    try {
+      final generatedAt = DateTime.now();
+      final bytes = await SchoolPdfReportBuilder.buildBytes(
+        school: school,
+        overview: overview,
+        classrooms: classrooms,
+        phonemes: phonemes,
+        trend: trend,
+        range: range,
+        generatedAt: generatedAt,
+        logoBytes: logoBytes,
+      );
 
-    if (!context.mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ReportPreviewScreen(
-          title: 'School Report',
-          fileName: SchoolPdfReportBuilder.fileName(school, generatedAt),
-          bytes: bytes,
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ReportPreviewScreen(
+            title: 'School Report',
+            fileName: SchoolPdfReportBuilder.fileName(school, generatedAt),
+            bytes: bytes,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (_) {
+      // PDF generation has no DioException path of its own (bytes are
+      // already fetched by here) - a failure at this point is a local
+      // rendering problem, e.g. malformed logo bytes reaching
+      // pw.MemoryImage, not a network error worth parsing for detail.
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not generate the report. Try again.')),
+      );
+    }
   }
 
   Future<void> _pickClassroomAndExport(
