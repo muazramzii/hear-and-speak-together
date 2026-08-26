@@ -319,17 +319,21 @@ class _SchoolProfileCardState extends ConsumerState<_SchoolProfileCard> {
     return AnalyticsCard(
       child: Row(
         children: [
-          GestureDetector(
-            onTap: _busy ? null : () => _pickLogo(context, school.id),
-            child: CircleAvatar(
-              radius: 28,
-              backgroundColor: palette.indigoSoft,
-              backgroundImage: school.logo != null
-                  ? NetworkImage(school.logo!)
-                  : null,
-              child: school.logo == null
-                  ? Icon(Icons.apartment_rounded, color: palette.indigo)
-                  : null,
+          Semantics(
+            button: true,
+            label: 'Change school logo',
+            child: GestureDetector(
+              onTap: _busy ? null : () => _pickLogo(context, school.id),
+              child: CircleAvatar(
+                radius: 28,
+                backgroundColor: palette.indigoSoft,
+                backgroundImage: school.logo != null
+                    ? NetworkImage(school.logo!)
+                    : null,
+                child: school.logo == null
+                    ? Icon(Icons.apartment_rounded, color: palette.indigo)
+                    : null,
+              ),
             ),
           ),
           const SizedBox(width: 16),
