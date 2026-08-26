@@ -225,7 +225,7 @@ class _SchoolProfileCardState extends ConsumerState<_SchoolProfileCard> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
@@ -264,7 +264,7 @@ class _SchoolProfileCardState extends ConsumerState<_SchoolProfileCard> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
@@ -288,7 +288,7 @@ class _SchoolProfileCardState extends ConsumerState<_SchoolProfileCard> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
