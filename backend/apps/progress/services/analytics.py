@@ -17,6 +17,7 @@ from django.utils import timezone
 from apps.practice.models import PracticeAttempt, QuizSession
 from apps.practice.services.pronunciation.g2p_english import EnglishG2P
 from apps.practice.services.pronunciation.g2p_malay import MalayG2P
+from apps.profiles.models import Profile
 
 from ..models import LessonProgress
 
@@ -336,6 +337,116 @@ def strong_phonemes(profile, limit=5):
     stats = [s for s in _phoneme_stats(profile) if s["frequency"] == 0]
     stats.sort(key=lambda item: item["sample_size"], reverse=True)
     return stats[:limit]
+
+
+def _phoneme_stats_for_profiles(profiles):
+    """The group-level counterpart to `_phoneme_stats` - same rate
+    definition (errors against a sound divided by how often it actually
+    occurs, re-derived via G2P rather than re-running recognition), the
+    same `_PHONEME_ERROR_TYPES`/`MIN_PHONEME_OCCURRENCES` rules, plus one
+    thing a single learner's stats have no use for: how many *distinct*
+    profiles are behind each phoneme's error count, not just how many
+    error events.
+    """
+    attempts = _scored_attempts_for_profiles(profiles).values(
+        "profile_id", "language_code", "reference_text", "errors"
+    )
+
+    appearances = Counter()
+    error_counts = Counter()
+    affected_students = defaultdict(set)
+
+    for attempt in attempts:
+        phonemes = _reference_phonemes(
+            attempt["language_code"], attempt["reference_text"]
+        )
+        appearances.update(phonemes)
+
+        for error in attempt["errors"] or []:
+            if error.get("type") not in _PHONEME_ERROR_TYPES:
+                continue
+            phoneme = error.get("expected") or error.get("detected")
+            if not phoneme:
+                continue
+            error_counts[phoneme] += 1
+            affected_students[phoneme].add(attempt["profile_id"])
+
+    stats = []
+    for phoneme, total in appearances.items():
+        if total < MIN_PHONEME_OCCURRENCES:
+            continue
+        errors = error_counts.get(phoneme, 0)
+        if errors == 0:
+            continue
+        stats.append(
+            {
+                "phoneme": phoneme,
+                "error_rate": round(100 * errors / total),
+                "total_occurrences": errors,
+                "affected_students": len(affected_students[phoneme]),
+            }
+        )
+    return stats
+
+
+def weakest_phonemes_for_profiles(profiles, limit=10):
+    """The school-wide flagship: which sounds this group most often gets
+    wrong, worst first - the `weak_phonemes` equivalent for a whole
+    school rather than one learner."""
+    stats = _phoneme_stats_for_profiles(profiles)
+    stats.sort(key=lambda item: item["error_rate"], reverse=True)
+    return stats[:limit]
+
+
+def classroom_breakdown(classrooms):
+    """Per-classroom summary: staff count, student count, average
+    pronunciation score, and completion rate.
+
+    Takes an already-scoped `classrooms` queryset/iterable and has no
+    opinion of its own about tenancy - the caller (Phase 6's school
+    analytics service) is responsible for that boundary, via
+    `SchoolScopedQuerySet`. Completion rate reuses
+    `LessonProgress.completion_percentage` directly (the same derived
+    figure the per-learner lesson list already shows) rather than
+    inventing a second definition of "complete."
+    """
+    from apps.schools.models import ClassroomMembership
+
+    rows = []
+    for classroom in classrooms:
+        students = Profile.objects.filter(classroom=classroom)
+        average = _scored_attempts_for_profiles(students).aggregate(
+            average=Avg("pronunciation_score")
+        )["average"]
+
+        lesson_records = list(LessonProgress.objects.filter(profile__in=students))
+        completion_rate = (
+            round(
+                sum(record.completion_percentage for record in lesson_records)
+                / len(lesson_records),
+                1,
+            )
+            if lesson_records
+            else 0.0
+        )
+
+        rows.append(
+            {
+                "classroom_id": classroom.id,
+                "classroom_name": classroom.name,
+                "teacher_count": ClassroomMembership.objects.filter(
+                    classroom=classroom
+                ).count(),
+                "student_count": students.count(),
+                "average_pronunciation_score": (
+                    round(average) if average is not None else 0
+                ),
+                "completion_rate": completion_rate,
+            }
+        )
+
+    rows.sort(key=lambda row: row["classroom_name"])
+    return rows
 
 
 def recent_attempts(profile, limit=5):
