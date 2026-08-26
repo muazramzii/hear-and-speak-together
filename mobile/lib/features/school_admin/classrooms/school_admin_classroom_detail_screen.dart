@@ -282,7 +282,7 @@ class _StaffRow extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
@@ -371,7 +371,7 @@ class _AssignTeacherSheetState extends ConsumerState<_AssignTeacherSheet> {
     } on ApiException catch (error) {
       setState(() {
         _busy = false;
-        _error = error.message;
+        _error = error.fieldMessage ?? error.message;
       });
     }
   }
@@ -494,7 +494,7 @@ class _TransferStudentSheetState
     } on ApiException catch (error) {
       setState(() {
         _busy = false;
-        _error = error.message;
+        _error = error.fieldMessage ?? error.message;
       });
     }
   }

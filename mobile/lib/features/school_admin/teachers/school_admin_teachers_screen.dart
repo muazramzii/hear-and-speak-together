@@ -152,7 +152,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         setState(() => _busy = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
@@ -191,7 +191,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         setState(() => _busy = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ).showSnackBar(SnackBar(content: Text(error.fieldMessage ?? error.message)));
       }
     }
   }
