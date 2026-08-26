@@ -74,6 +74,85 @@ def _scored_attempts(profile):
     )
 
 
+def _scored_attempts_for_profiles(profiles):
+    """The group-level counterpart to `_scored_attempts` - scored attempts
+    across an arbitrary queryset (or iterable) of profiles, not just one
+    learner. This is what every Phase 6 school-wide analytics function
+    below is built on, so a school's numbers and an individual learner's
+    numbers are always the same silent-recordings-excluded definition of
+    "a scored attempt."
+    """
+    return PracticeAttempt.objects.filter(profile__in=profiles).exclude(
+        pronunciation_score__isnull=True
+    )
+
+
+def group_score_summary(profiles):
+    """Weekly/monthly average pronunciation score and today's active-
+    learner count across a group of profiles - the school-wide
+    counterpart to `overall_summary`'s single-learner average.
+    """
+    attempts = _scored_attempts_for_profiles(profiles)
+    now = timezone.now()
+
+    weekly = attempts.filter(created_at__gte=now - timedelta(days=7)).aggregate(
+        average=Avg("pronunciation_score")
+    )["average"]
+    monthly = attempts.filter(created_at__gte=now - timedelta(days=30)).aggregate(
+        average=Avg("pronunciation_score")
+    )["average"]
+    active_today = (
+        attempts.filter(created_at__date=timezone.localdate())
+        .values("profile")
+        .distinct()
+        .count()
+    )
+
+    return {
+        "weekly_average_score": round(weekly) if weekly is not None else None,
+        "monthly_average_score": round(monthly) if monthly is not None else None,
+        "active_students_today": active_today,
+    }
+
+
+def daily_trend_for_profiles(profiles, days=7):
+    """Per-day attempt count and average score across a group of profiles
+    for the last `days` days, every day present even with zero attempts.
+
+    Unlike `improvement_trend` (which omits empty days - a gap in one
+    learner's own chart is not itself informative), a school-wide trend
+    is read by an admin looking for *drop-offs*: a day the whole school
+    went quiet is exactly the thing this view exists to surface, so it
+    must appear as a zero, not be silently missing.
+    """
+    today = timezone.localdate()
+    since = today - timedelta(days=days - 1)
+
+    by_day = {
+        row["day"]: row
+        for row in (
+            _scored_attempts_for_profiles(profiles)
+            .filter(created_at__date__gte=since)
+            .annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(average=Avg("pronunciation_score"), attempts=Count("id"))
+        )
+    }
+
+    return [
+        {
+            "date": day,
+            "attempts": by_day[day]["attempts"] if day in by_day else 0,
+            "average_score": (
+                round(by_day[day]["average"])
+                if day in by_day and by_day[day]["average"] is not None
+                else 0
+            ),
+        }
+        for day in (since + timedelta(days=offset) for offset in range(days))
+    ]
+
+
 def overall_summary(profile):
     """Headline numbers for the progress screen."""
     attempts = _scored_attempts(profile)
