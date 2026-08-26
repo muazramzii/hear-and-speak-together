@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -478,6 +479,38 @@ class _SchoolAnalyticsView(APIView):
 
     permission_classes = [IsAuthenticated, IsSchoolAdmin]
 
+    @staticmethod
+    def _classroom_id_param(request):
+        """Optional per-classroom scope for the phonemes/trends endpoints
+        (Task 9's classroom report). Malformed input is a client error,
+        not a silent fallback to school-wide data."""
+        raw = request.query_params.get("classroom_id")
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            raise ValidationError({"classroom_id": "Must be an integer."})
+
+    @staticmethod
+    def _days_param(request, default=7, maximum=90):
+        """Optional day-count override for the trends endpoint (Task 9's
+        Last 7/30 days and This month filters). Bounded to keep the
+        underlying query cheap - `daily_trend_for_profiles` already
+        supports any count, this just guards the public parameter."""
+        raw = request.query_params.get("days")
+        if raw is None:
+            return default
+        try:
+            days = int(raw)
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days < 1 or days > maximum:
+            raise ValidationError(
+                {"days": f"Must be between 1 and {maximum}."}
+            )
+        return days
+
 
 class SchoolAnalyticsOverviewView(_SchoolAnalyticsView):
     """GET /api/schools/analytics/overview/
@@ -504,18 +537,31 @@ class SchoolAnalyticsClassroomsView(_SchoolAnalyticsView):
 
 
 class SchoolAnalyticsPhonemesView(_SchoolAnalyticsView):
-    """GET /api/schools/analytics/phonemes/ - top 10 weakest sounds
-    school-wide, worst first."""
+    """GET /api/schools/analytics/phonemes/ - top 10 weakest sounds,
+    worst first. School-wide by default; pass `?classroom_id=` to scope
+    to one classroom (Task 9's classroom report) - a classroom id from
+    another school, or that doesn't exist, yields an empty list rather
+    than an error or another tenant's data."""
 
     def get(self, request):
-        rows = school_analytics.weakest_phonemes(request.user.school, limit=10)
+        classroom_id = self._classroom_id_param(request)
+        rows = school_analytics.weakest_phonemes(
+            request.user.school, limit=10, classroom_id=classroom_id
+        )
         return Response(PhonemeAnalyticsSerializer(rows, many=True).data)
 
 
 class SchoolAnalyticsTrendsView(_SchoolAnalyticsView):
-    """GET /api/schools/analytics/trends/ - the last 7 days, zero-filled
-    for any day with no activity at all."""
+    """GET /api/schools/analytics/trends/ - zero-filled for any day with
+    no activity at all. Defaults to the last 7 days, school-wide; pass
+    `?days=` (1-90) for a longer window (Task 9's Last 30 days/This
+    month filters) and/or `?classroom_id=` to scope to one classroom
+    (Task 9's classroom report)."""
 
     def get(self, request):
-        rows = school_analytics.daily_trend(request.user.school, days=7)
+        days = self._days_param(request)
+        classroom_id = self._classroom_id_param(request)
+        rows = school_analytics.daily_trend(
+            request.user.school, days=days, classroom_id=classroom_id
+        )
         return Response(DailyTrendSerializer(rows, many=True).data)
