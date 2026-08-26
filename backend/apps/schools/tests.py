@@ -1352,3 +1352,430 @@ class ClassroomAPITests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.other_school_profile.refresh_from_db()
         self.assertEqual(self.other_school_profile.classroom_id, self.classroom_b1.id)
+
+
+def _backdate(attempt, when):
+    """`PracticeAttempt.created_at` is `auto_now_add=True` - not settable
+    through the constructor or a normal `.save()`. `.update()` bypasses
+    the field's `pre_save` hook, which is the standard way to backdate an
+    auto-now field in a test."""
+    PracticeAttempt.objects.filter(pk=attempt.pk).update(created_at=when)
+
+
+class SchoolAnalyticsAPITests(APITestCase):
+    """Phase 6 Task 7: `/api/schools/analytics/...`, driven exactly as a
+    client would - real JWT login, real HTTP verbs, real G2P phoneme
+    conversion (not mocked), no mocks anywhere in this class.
+    """
+
+    def setUp(self):
+        self.language = Language.objects.create(
+            code="en", name="English", locale="en-US"
+        )
+        category = Category.objects.create(
+            language=self.language, slug="animals", name="Animals"
+        )
+        lesson = Lesson.objects.create(category=category, title="Animals")
+        # "cat" -> ['k', 'æ', 't'] under the real English G2P - shared by
+        # every attempt below so phoneme aggregation has a real, repeated
+        # sound to find, deterministically, with no mock in the loop.
+        self.word = Word.objects.create(lesson=lesson, text="cat")
+
+        self.admin_a = User.objects.create_user(
+            email="analytics-admin-a@example.com",
+            name="Admin A",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.school_a = School.objects.create(name="School A", admin=self.admin_a)
+        self.admin_a.school = self.school_a
+        self.admin_a.save()
+
+        self.admin_b = User.objects.create_user(
+            email="analytics-admin-b@example.com",
+            name="Admin B",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.school_b = School.objects.create(name="School B", admin=self.admin_b)
+        self.admin_b.school = self.school_b
+        self.admin_b.save()
+
+        self.classroom_a1 = Classroom.objects.create(
+            school=self.school_a, name="Classroom Alpha"
+        )
+        self.classroom_a2 = Classroom.objects.create(
+            school=self.school_a, name="Classroom Beta"
+        )
+        self.classroom_a_inactive = Classroom.objects.create(
+            school=self.school_a, name="Classroom Zeta", is_active=False
+        )
+        self.classroom_b1 = Classroom.objects.create(
+            school=self.school_b, name="Classroom One"
+        )
+
+        self.teacher_a1 = User.objects.create_user(
+            email="analytics-teacher-a1@example.com",
+            name="Teacher A1",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        self.teacher_a2 = User.objects.create_user(
+            email="analytics-teacher-a2@example.com",
+            name="Teacher A2",
+            password="TeaCup!2026",
+            role=Role.TEACHER,
+            school=self.school_a,
+        )
+        ClassroomMembership.objects.create(
+            classroom=self.classroom_a1,
+            teacher=self.teacher_a1,
+            role=ClassroomStaffRole.LEAD_TEACHER,
+        )
+        ClassroomMembership.objects.create(
+            classroom=self.classroom_a2,
+            teacher=self.teacher_a2,
+            role=ClassroomStaffRole.LEAD_TEACHER,
+        )
+
+        self.parent = User.objects.create_user(
+            email="analytics-parent@example.com",
+            name="Parent",
+            password="TeaCup!2026",
+            role=Role.PARENT,
+        )
+
+        self.profile_a1 = Profile.objects.create(
+            owner=self.admin_a,
+            name="Learner A1",
+            practice_language=self.language,
+            classroom=self.classroom_a1,
+        )
+        self.profile_a2 = Profile.objects.create(
+            owner=self.admin_a,
+            name="Learner A2",
+            practice_language=self.language,
+            classroom=self.classroom_a2,
+        )
+        self.profile_a_inactive = Profile.objects.create(
+            owner=self.admin_a,
+            name="Learner Inactive",
+            practice_language=self.language,
+            classroom=self.classroom_a_inactive,
+        )
+        self.profile_b1 = Profile.objects.create(
+            owner=self.admin_b,
+            name="Learner B1",
+            practice_language=self.language,
+            classroom=self.classroom_b1,
+        )
+
+        now = timezone.now()
+
+        def attempt(profile, *, score, errors=None, when=now):
+            record = PracticeAttempt.objects.create(
+                profile=profile,
+                word=self.word,
+                language_code="en",
+                locale="en-US",
+                reference_text="cat",
+                pronunciation_score=score,
+                errors=errors or [],
+            )
+            _backdate(record, when)
+            return record
+
+        # Phoneme 't' appears 3 times (one per attempt on "cat"), errors
+        # against it recorded twice, from two distinct profiles - a real,
+        # deterministic weak-phoneme signal, not a fabricated dict.
+        attempt(
+            self.profile_a1,
+            score=60,
+            errors=[{"type": "wrong_consonant", "expected": "t"}],
+        )
+        attempt(
+            self.profile_a2,
+            score=64,
+            errors=[{"type": "wrong_consonant", "expected": "t"}],
+        )
+        attempt(self.profile_a1, score=90, when=now - timedelta(days=3))
+
+        # Outside the 7-day trend window, inside the 30-day monthly one.
+        attempt(self.profile_a1, score=80, when=now - timedelta(days=10))
+        # Outside even the monthly window entirely.
+        attempt(self.profile_a1, score=40, when=now - timedelta(days=40))
+
+        # This classroom is deactivated - none of this should count
+        # anywhere in School A's analytics.
+        attempt(
+            self.profile_a_inactive,
+            score=20,
+            errors=[{"type": "wrong_consonant", "expected": "t"}],
+        )
+
+        # School B's own data - must never leak into School A's numbers.
+        attempt(self.profile_b1, score=99)
+
+    def authenticate(self, user):
+        login = self.client.post(
+            reverse("accounts:login"),
+            {"email": user.email, "password": "TeaCup!2026"},
+            format="json",
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}"
+        )
+
+    # -- overview ----------------------------------------------------
+
+    def test_overview_totals(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["total_students"], 2)  # inactive-classroom learner excluded
+        self.assertEqual(body["total_teachers"], 2)
+        self.assertEqual(body["total_classrooms"], 2)  # inactive classroom excluded
+
+    def test_overview_weekly_and_monthly_averages(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        body = response.json()
+        # Weekly window: the 60, 64 and 90 scores (all within 7 days).
+        self.assertEqual(body["weekly_average_score"], round((60 + 64 + 90) / 3))
+        # Monthly window additionally includes the 10-day-old 80, not the
+        # 40-day-old 40.
+        self.assertEqual(
+            body["monthly_average_score"], round((60 + 64 + 90 + 80) / 4)
+        )
+
+    def test_overview_active_students_today(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        # profile_a1 and profile_a2 both practised "today" (the 3-day-old
+        # and older attempts don't count; the inactive-classroom learner
+        # is excluded regardless of when they practised).
+        self.assertEqual(response.json()["active_students_today"], 2)
+
+    def test_overview_does_not_leak_another_schools_numbers(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        body = response.json()
+        self.assertEqual(body["total_students"], 1)
+        self.assertEqual(body["weekly_average_score"], 99)
+
+    def test_overview_for_admin_with_no_school_is_all_zero(self):
+        schoolless_admin = User.objects.create_user(
+            email="schoolless-admin@example.com",
+            name="Schoolless Admin",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        self.authenticate(schoolless_admin)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["total_students"], 0)
+        self.assertIsNone(body["weekly_average_score"])
+
+    def test_overview_of_a_school_with_no_data_at_all(self):
+        empty_admin = User.objects.create_user(
+            email="empty-admin@example.com",
+            name="Empty Admin",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        empty_school = School.objects.create(name="Empty School", admin=empty_admin)
+        empty_admin.school = empty_school
+        empty_admin.save()
+        self.authenticate(empty_admin)
+
+        response = self.client.get("/api/schools/analytics/overview/")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["total_students"], 0)
+        self.assertEqual(body["total_classrooms"], 0)
+        self.assertIsNone(body["weekly_average_score"])
+
+    # -- classrooms ----------------------------------------------------
+
+    def test_classroom_breakdown_ordered_by_name(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/classrooms/")
+
+        names = [row["classroom_name"] for row in response.json()]
+        self.assertEqual(names, ["Classroom Alpha", "Classroom Beta"])
+
+    def test_classroom_breakdown_excludes_inactive_classroom(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/classrooms/")
+
+        names = {row["classroom_name"] for row in response.json()}
+        self.assertNotIn("Classroom Zeta", names)
+
+    def test_classroom_breakdown_teacher_and_student_counts(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/classrooms/")
+
+        alpha = next(
+            row for row in response.json() if row["classroom_name"] == "Classroom Alpha"
+        )
+        self.assertEqual(alpha["teacher_count"], 1)
+        self.assertEqual(alpha["student_count"], 1)
+
+    def test_classroom_breakdown_average_pronunciation_score(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/classrooms/")
+
+        alpha = next(
+            row for row in response.json() if row["classroom_name"] == "Classroom Alpha"
+        )
+        # profile_a1's three attempts: 60, 90, 80 (the 40-day-old 40 is
+        # still a scored attempt and still belongs to this classroom -
+        # classroom breakdown is not itself time-windowed).
+        self.assertEqual(alpha["average_pronunciation_score"], round((60 + 90 + 80 + 40) / 4))
+
+    def test_classroom_breakdown_single_classroom_school(self):
+        self.authenticate(self.admin_b)
+
+        response = self.client.get("/api/schools/analytics/classrooms/")
+
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["classroom_name"], "Classroom One")
+
+    # -- phonemes -----------------------------------------------------
+
+    def test_weakest_phonemes_finds_the_real_signal(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/phonemes/")
+
+        rows = {row["phoneme"]: row for row in response.json()}
+        self.assertIn("t", rows)
+        self.assertEqual(rows["t"]["total_occurrences"], 2)
+        self.assertEqual(rows["t"]["affected_students"], 2)
+        # "t" appears once per scored "cat" attempt in School A: the two
+        # error attempts (profile_a1, profile_a2) plus profile_a1's three
+        # other, error-free "cat" attempts (the 3/10/40-day-old ones used
+        # for the weekly/monthly window tests) = 5 appearances, 2 errors.
+        self.assertEqual(rows["t"]["error_rate"], round(100 * 2 / 5))
+
+    def test_weakest_phonemes_limited_to_top_ten(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/phonemes/")
+
+        self.assertLessEqual(len(response.json()), 10)
+
+    def test_weakest_phonemes_excludes_inactive_classroom(self):
+        """The inactive-classroom learner's attempt also reports an error
+        on "t" - if it were not excluded, `total_occurrences` for "t"
+        would be 3, not 2."""
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/phonemes/")
+
+        rows = {row["phoneme"]: row for row in response.json()}
+        self.assertEqual(rows["t"]["total_occurrences"], 2)
+
+    def test_weakest_phonemes_empty_school_returns_empty_list(self):
+        empty_admin = User.objects.create_user(
+            email="empty-admin-2@example.com",
+            name="Empty Admin 2",
+            password="TeaCup!2026",
+            role=Role.SCHOOL_ADMIN,
+        )
+        empty_school = School.objects.create(name="Empty School 2", admin=empty_admin)
+        empty_admin.school = empty_school
+        empty_admin.save()
+        self.authenticate(empty_admin)
+
+        response = self.client.get("/api/schools/analytics/phonemes/")
+
+        self.assertEqual(response.json(), [])
+
+    # -- trends ----------------------------------------------------------
+
+    def test_trends_returns_seven_days(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/")
+
+        self.assertEqual(len(response.json()), 7)
+
+    def test_trends_zero_fills_days_without_activity(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/")
+
+        rows = response.json()
+        today = str(timezone.localdate())
+        zero_days = [row for row in rows if row["date"] != today and row["attempts"] == 0]
+        # Every day in the 7-day window except "today" and 3-days-ago had
+        # no School A activity at all, and must still appear as a row.
+        self.assertGreaterEqual(len(zero_days), 4)
+
+    def test_trends_computes_average_score_for_an_active_day(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/")
+
+        today = str(timezone.localdate())
+        today_row = next(row for row in response.json() if row["date"] == today)
+        self.assertEqual(today_row["attempts"], 2)
+        self.assertEqual(today_row["average_score"], round((60 + 64) / 2))
+
+    # -- authorization -----------------------------------------------
+
+    def test_teacher_forbidden_from_overview(self):
+        self.authenticate(self.teacher_a1)
+        self.assertEqual(
+            self.client.get("/api/schools/analytics/overview/").status_code, 403
+        )
+
+    def test_teacher_forbidden_from_classrooms(self):
+        self.authenticate(self.teacher_a1)
+        self.assertEqual(
+            self.client.get("/api/schools/analytics/classrooms/").status_code, 403
+        )
+
+    def test_teacher_forbidden_from_phonemes(self):
+        self.authenticate(self.teacher_a1)
+        self.assertEqual(
+            self.client.get("/api/schools/analytics/phonemes/").status_code, 403
+        )
+
+    def test_teacher_forbidden_from_trends(self):
+        self.authenticate(self.teacher_a1)
+        self.assertEqual(
+            self.client.get("/api/schools/analytics/trends/").status_code, 403
+        )
+
+    def test_parent_forbidden_from_all_analytics_endpoints(self):
+        self.authenticate(self.parent)
+        for path in ("overview", "classrooms", "phonemes", "trends"):
+            with self.subTest(path=path):
+                response = self.client.get(f"/api/schools/analytics/{path}/")
+                self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_denied_on_all_analytics_endpoints(self):
+        for path in ("overview", "classrooms", "phonemes", "trends"):
+            with self.subTest(path=path):
+                response = self.client.get(f"/api/schools/analytics/{path}/")
+                self.assertEqual(response.status_code, 401)
