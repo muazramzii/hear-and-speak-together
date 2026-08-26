@@ -29,6 +29,11 @@ analytics_urlpatterns = [
         views.SchoolAnalyticsOverviewView.as_view(),
         name="school-analytics-overview",
     ),
+    path(
+        "schools/analytics/classrooms/",
+        views.SchoolAnalyticsClassroomsView.as_view(),
+        name="school-analytics-classrooms",
+    ),
 ]
 
 urlpatterns = router.urls + analytics_urlpatterns
