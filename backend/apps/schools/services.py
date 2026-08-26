@@ -79,19 +79,52 @@ def classroom_breakdown(school):
     return progress_analytics.classroom_breakdown(classrooms)
 
 
-def weakest_phonemes(school, limit=10):
-    """Top weakest sounds for `GET /api/schools/analytics/phonemes/`."""
+def _profiles_for_scope(school, classroom_id=None):
+    """Students in scope: one classroom, tenant-checked, or the whole school.
+
+    `classroom_id` is client-supplied (Task 9's per-classroom report), so
+    it is resolved through `SchoolScopedQuerySet.classrooms_for_school`
+    rather than a bare lookup by id - a classroom id that doesn't exist,
+    or belongs to a different school, silently yields no profiles rather
+    than another tenant's data.
+    """
+    if classroom_id is not None:
+        classroom = (
+            SchoolScopedQuerySet.classrooms_for_school(school)
+            .filter(id=classroom_id)
+            .first()
+        )
+        if classroom is None:
+            return Profile.objects.none()
+        return Profile.objects.filter(classroom=classroom)
+
+    return _active_profiles_for_school(school)
+
+
+def weakest_phonemes(school, limit=10, classroom_id=None):
+    """Top weakest sounds for `GET /api/schools/analytics/phonemes/`.
+
+    `classroom_id` narrows the same calculation to one classroom's
+    students (Task 9's classroom report) - the underlying
+    `weakest_phonemes_for_profiles` already accepts any profile queryset.
+    """
     if school is None:
         return []
 
-    profiles = _active_profiles_for_school(school)
+    profiles = _profiles_for_scope(school, classroom_id)
     return progress_analytics.weakest_phonemes_for_profiles(profiles, limit=limit)
 
 
-def daily_trend(school, days=7):
-    """Day-by-day rows for `GET /api/schools/analytics/trends/`."""
+def daily_trend(school, days=7, classroom_id=None):
+    """Day-by-day rows for `GET /api/schools/analytics/trends/`.
+
+    `days` and `classroom_id` both narrow the same calculation
+    (`daily_trend_for_profiles` already accepts any day count and any
+    profile queryset) - Task 9's date-range filters and classroom report
+    reuse this exactly rather than duplicating trend math client-side.
+    """
     if school is None:
         return []
 
-    profiles = _active_profiles_for_school(school)
+    profiles = _profiles_for_scope(school, classroom_id)
     return progress_analytics.daily_trend_for_profiles(profiles, days=days)
