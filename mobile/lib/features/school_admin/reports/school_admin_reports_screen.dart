@@ -147,10 +147,18 @@ class SchoolAdminReportsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(
-        child: Semantics(
-          label: 'Preparing classroom report',
-          child: const CircularProgressIndicator(),
+      builder: (_) => PopScope(
+        // `barrierDismissible: false` only blocks tap-outside; without
+        // this, the system back button can still pop the dialog while
+        // the fetch below is in flight, and the unconditional pop() on
+        // completion would then close whatever route is on top instead
+        // - in practice, the Reports screen itself.
+        canPop: false,
+        child: Center(
+          child: Semantics(
+            label: 'Preparing classroom report',
+            child: const CircularProgressIndicator(),
+          ),
         ),
       ),
     );
