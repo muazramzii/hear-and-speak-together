@@ -52,6 +52,10 @@ class SchoolAdminDashboardScreen extends ConsumerWidget {
                   }
                   return RefreshIndicator(
                     onRefresh: () async {
+                      // Includes mySchoolProvider itself - a rename made
+                      // in Settings should show up here on the next pull,
+                      // not just the score/phoneme/trend figures.
+                      ref.invalidate(mySchoolProvider);
                       ref.invalidate(schoolOverviewProvider);
                       ref.invalidate(weakestPhonemesProvider);
                       ref.invalidate(dailyTrendsProvider);
