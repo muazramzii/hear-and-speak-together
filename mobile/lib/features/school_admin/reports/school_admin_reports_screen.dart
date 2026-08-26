@@ -589,31 +589,40 @@ class _ClassroomPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Semantics(
-              header: true,
-              child: Text(
-                'Select a classroom',
-                style: Theme.of(context).textTheme.titleMedium,
+    // `shrinkWrap: true` sizes the ListView to its content rather than
+    // filling the sheet - fine for a handful of classrooms, but with no
+    // cap on how many a school can have, an unconstrained sheet would
+    // overflow past the screen for a large list instead of scrolling.
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+      ),
+      child: SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  'Select a classroom',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
             ),
-          ),
-          for (final classroom in classrooms)
-            ListTile(
-              title: Text(classroom.classroomName),
-              subtitle: Text(
-                '${classroom.studentCount} students · '
-                '${classroom.averagePronunciationScore}% average',
+            for (final classroom in classrooms)
+              ListTile(
+                title: Text(classroom.classroomName),
+                subtitle: Text(
+                  '${classroom.studentCount} students · '
+                  '${classroom.averagePronunciationScore}% average',
+                ),
+                onTap: () => Navigator.of(context).pop(classroom),
               ),
-              onTap: () => Navigator.of(context).pop(classroom),
-            ),
-          const SizedBox(height: 8),
-        ],
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
