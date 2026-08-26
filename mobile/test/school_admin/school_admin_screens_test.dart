@@ -70,10 +70,15 @@ class _FakeSchoolAnalyticsRepository implements SchoolAnalyticsRepository {
   Future<List<ClassroomAnalytics>> fetchClassroomAnalytics() async => const [];
 
   @override
-  Future<List<PhonemeAnalytics>> fetchWeakestPhonemes() async => phonemes;
+  Future<List<PhonemeAnalytics>> fetchWeakestPhonemes({
+    int? classroomId,
+  }) async => phonemes;
 
   @override
-  Future<List<DailyTrend>> fetchTrends() async => trends;
+  Future<List<DailyTrend>> fetchTrends({
+    int days = 7,
+    int? classroomId,
+  }) async => trends;
 }
 
 class _FakeTeacherInvitationRepository implements TeacherInvitationRepository {
