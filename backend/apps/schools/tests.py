@@ -1710,6 +1710,41 @@ class SchoolAnalyticsAPITests(APITestCase):
 
         self.assertEqual(response.json(), [])
 
+    def test_weakest_phonemes_scoped_to_one_classroom(self):
+        """Task 9's classroom report: `?classroom_id=` narrows the same
+        calculation to one classroom's students only. Classroom Beta has
+        exactly one learner (profile_a2) with exactly one "cat" attempt,
+        so "t" appears only once there - below
+        `MIN_PHONEME_OCCURRENCES` (3), so the scoped response is
+        genuinely empty, unlike School A's school-wide 5-occurrence
+        signal."""
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(
+            f"/api/schools/analytics/phonemes/?classroom_id={self.classroom_a2.id}"
+        )
+
+        self.assertEqual(response.json(), [])
+
+    def test_weakest_phonemes_classroom_id_from_another_school_yields_empty(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(
+            f"/api/schools/analytics/phonemes/?classroom_id={self.classroom_b1.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_weakest_phonemes_malformed_classroom_id_is_bad_request(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(
+            "/api/schools/analytics/phonemes/?classroom_id=not-a-number"
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     # -- trends ----------------------------------------------------------
 
     def test_trends_returns_seven_days(self):
@@ -1740,6 +1775,62 @@ class SchoolAnalyticsAPITests(APITestCase):
         today_row = next(row for row in response.json() if row["date"] == today)
         self.assertEqual(today_row["attempts"], 2)
         self.assertEqual(today_row["average_score"], round((60 + 64) / 2))
+
+    def test_trends_days_param_widens_the_window(self):
+        """Task 9's Last 30 days / This month filters: `?days=` reuses
+        the same `daily_trend_for_profiles` the default 7-day view uses,
+        just with a longer window - the 10-day-old attempt is outside
+        the default 7 days but inside 30."""
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/?days=30")
+
+        self.assertEqual(len(response.json()), 30)
+
+    def test_trends_days_param_defaults_to_seven_when_absent(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/")
+
+        self.assertEqual(len(response.json()), 7)
+
+    def test_trends_days_param_rejects_out_of_range_values(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/?days=91")
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_trends_days_param_rejects_non_integer(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get("/api/schools/analytics/trends/?days=today")
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_trends_scoped_to_one_classroom(self):
+        """Classroom Beta (profile_a2) practised only "today" - its
+        scoped trend must show 1 attempt today, not School A's 2."""
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(
+            f"/api/schools/analytics/trends/?classroom_id={self.classroom_a2.id}"
+        )
+
+        today = str(timezone.localdate())
+        today_row = next(row for row in response.json() if row["date"] == today)
+        self.assertEqual(today_row["attempts"], 1)
+        self.assertEqual(today_row["average_score"], 64)
+
+    def test_trends_classroom_id_from_another_school_yields_zero_filled_rows(self):
+        self.authenticate(self.admin_a)
+
+        response = self.client.get(
+            f"/api/schools/analytics/trends/?classroom_id={self.classroom_b1.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(row["attempts"] == 0 for row in response.json()))
 
     # -- authorization -----------------------------------------------
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../core/network/dio_client.dart';
+import '../models/report_filter.dart';
 import '../models/school_analytics.dart';
 
 /// Read-only: every figure behind these endpoints (Task 7) is already
@@ -42,11 +43,17 @@ class SchoolAnalyticsRepository {
     }
   }
 
-  /// Top 10 weakest sounds school-wide, worst first.
-  Future<List<PhonemeAnalytics>> fetchWeakestPhonemes() async {
+  /// Top 10 weakest sounds, worst first. School-wide by default; pass
+  /// [classroomId] to scope to one classroom's students (Task 9's
+  /// classroom report) - the backend already treats that id as
+  /// tenant-checked, so there is nothing else to guard here.
+  Future<List<PhonemeAnalytics>> fetchWeakestPhonemes({
+    int? classroomId,
+  }) async {
     try {
       final response = await _dio.get<List<dynamic>>(
         '/schools/analytics/phonemes/',
+        queryParameters: {if (classroomId != null) 'classroom_id': classroomId},
       );
       return (response.data ?? const [])
           .map(
@@ -60,11 +67,17 @@ class SchoolAnalyticsRepository {
     }
   }
 
-  /// The last 7 days, oldest first, zero-filled for inactive days.
-  Future<List<DailyTrend>> fetchTrends() async {
+  /// [days] days, oldest first, zero-filled for inactive days. Defaults
+  /// to 7; pass [classroomId] to scope to one classroom (Task 9's
+  /// classroom report).
+  Future<List<DailyTrend>> fetchTrends({int days = 7, int? classroomId}) async {
     try {
       final response = await _dio.get<List<dynamic>>(
         '/schools/analytics/trends/',
+        queryParameters: {
+          'days': days,
+          if (classroomId != null) 'classroom_id': classroomId,
+        },
       );
       return (response.data ?? const [])
           .map(
@@ -108,4 +121,22 @@ final dailyTrendsProvider = FutureProvider.autoDispose<List<DailyTrend>>((
   ref,
 ) {
   return ref.watch(schoolAnalyticsRepositoryProvider).fetchTrends();
+});
+
+/// The Reports screen's selected date-range filter (Task 9, Feature 3) -
+/// a single source of truth [reportTrendProvider] reacts to. Only the
+/// trend endpoint accepts a day count, so this is the only section the
+/// filter narrows; overview/classroom/phoneme figures keep their own
+/// fixed windows.
+final reportDateRangeProvider = StateProvider.autoDispose<ReportDateRange>(
+  (ref) => ReportDateRange.last7Days,
+);
+
+final reportTrendProvider = FutureProvider.autoDispose<List<DailyTrend>>((
+  ref,
+) {
+  final range = ref.watch(reportDateRangeProvider);
+  return ref
+      .watch(schoolAnalyticsRepositoryProvider)
+      .fetchTrends(days: range.days);
 });

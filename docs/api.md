@@ -422,6 +422,11 @@ per-learner "weak phonemes" feature already uses — a sound only appears once
 it has a trustworthy sample size across the school, not after one unlucky
 recording.
 
+Optional `?classroom_id=` (Task 9's classroom report) narrows the same
+calculation to one classroom's students. A `classroom_id` that doesn't exist,
+or belongs to another school, returns an empty list rather than an error or
+another tenant's data.
+
 ```json
 [
   { "phoneme": "th", "error_rate": 62, "total_occurrences": 18, "affected_students": 9 }
@@ -430,10 +435,16 @@ recording.
 
 ### `GET /api/schools/analytics/trends/`
 
-The last 7 days, oldest first. Every day appears even with zero attempts —
-unlike a single learner's own trend chart (where a quiet day is omitted as
-uninformative), a school-wide chart is read by an admin looking for
-drop-offs, so a quiet day is exactly what this endpoint must surface.
+The last 7 days by default, oldest first. Every day appears even with zero
+attempts — unlike a single learner's own trend chart (where a quiet day is
+omitted as uninformative), a school-wide chart is read by an admin looking
+for drop-offs, so a quiet day is exactly what this endpoint must surface.
+
+Optional `?days=` (1–90, Task 9's Last 30 days / This month report filters)
+widens the window — the underlying calculation already supports any day
+count, so this is a plain pass-through, not a new aggregation. Optional
+`?classroom_id=` (Task 9's classroom report) scopes the same window to one
+classroom's students; combine both to get a longer, classroom-scoped trend.
 
 ```json
 [
