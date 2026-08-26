@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import views
@@ -16,4 +17,33 @@ router.register(
 router.register("schools", views.SchoolViewSet, basename="school")
 router.register("classrooms", views.ClassroomViewSet, basename="classroom")
 
-urlpatterns = router.urls
+# Plain APIViews, not router-registered: none of these are a CRUD resource
+# collection, and each has more path segments after "schools/" than the
+# school detail route's `(?P<pk>[^/.]+)/$` can ever match (it requires
+# exactly one segment immediately followed by end-of-string), so there is
+# no ordering hazard here the way there was with "schools/invitations"
+# above - verified by resolving each path directly, not just assumed.
+analytics_urlpatterns = [
+    path(
+        "schools/analytics/overview/",
+        views.SchoolAnalyticsOverviewView.as_view(),
+        name="school-analytics-overview",
+    ),
+    path(
+        "schools/analytics/classrooms/",
+        views.SchoolAnalyticsClassroomsView.as_view(),
+        name="school-analytics-classrooms",
+    ),
+    path(
+        "schools/analytics/phonemes/",
+        views.SchoolAnalyticsPhonemesView.as_view(),
+        name="school-analytics-phonemes",
+    ),
+    path(
+        "schools/analytics/trends/",
+        views.SchoolAnalyticsTrendsView.as_view(),
+        name="school-analytics-trends",
+    ),
+]
+
+urlpatterns = router.urls + analytics_urlpatterns

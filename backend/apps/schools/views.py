@@ -6,10 +6,12 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.models import Role
 from apps.profiles.models import Profile
 
+from . import services as school_analytics
 from .filters import ClassroomFilter
 from .models import Classroom, ClassroomMembership, TeacherInvitation
 from .permissions import (
@@ -25,6 +27,10 @@ from .serializers import (
     ClassroomSerializer,
     ClassroomStudentMoveSerializer,
     ClassroomWriteSerializer,
+    ClassroomAnalyticsSerializer,
+    DailyTrendSerializer,
+    PhonemeAnalyticsSerializer,
+    SchoolAnalyticsOverviewSerializer,
     SchoolSerializer,
     SchoolWriteSerializer,
     TeacherInvitationAcceptSerializer,
@@ -456,3 +462,60 @@ class ClassroomViewSet(viewsets.ModelViewSet):
                 "classroom": ClassroomDetailSerializer(classroom).data,
             }
         )
+
+
+class _SchoolAnalyticsView(APIView):
+    """Shared base for the four `/api/schools/analytics/...` endpoints.
+
+    SCHOOL_ADMIN-only, and there is no id to guess in any of these URLs -
+    the school is always `request.user.school`, never a client-supplied
+    parameter, which is what makes "no cross-tenant leakage" true by
+    construction rather than by a queryset filter that could be gotten
+    wrong. A request from an admin with no school at all (never having
+    created one) gets an empty-but-valid response, not an error - Task 4
+    already made a `School` the very first thing an admin creates.
+    """
+
+    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+
+
+class SchoolAnalyticsOverviewView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/overview/
+
+    No special-casing for `request.user.school is None` here - every
+    `school_analytics` function accepts `None` and returns its own empty
+    shape, so this view (and the three below) never need to know or
+    duplicate what "no data yet" looks like.
+    """
+
+    def get(self, request):
+        data = school_analytics.overview(request.user.school)
+        return Response(SchoolAnalyticsOverviewSerializer(data).data)
+
+
+class SchoolAnalyticsClassroomsView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/classrooms/ - already ordered by
+    classroom name (`apps.progress.services.analytics.classroom_breakdown`
+    sorts before returning)."""
+
+    def get(self, request):
+        rows = school_analytics.classroom_breakdown(request.user.school)
+        return Response(ClassroomAnalyticsSerializer(rows, many=True).data)
+
+
+class SchoolAnalyticsPhonemesView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/phonemes/ - top 10 weakest sounds
+    school-wide, worst first."""
+
+    def get(self, request):
+        rows = school_analytics.weakest_phonemes(request.user.school, limit=10)
+        return Response(PhonemeAnalyticsSerializer(rows, many=True).data)
+
+
+class SchoolAnalyticsTrendsView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/trends/ - the last 7 days, zero-filled
+    for any day with no activity at all."""
+
+    def get(self, request):
+        rows = school_analytics.daily_trend(request.user.school, days=7)
+        return Response(DailyTrendSerializer(rows, many=True).data)
