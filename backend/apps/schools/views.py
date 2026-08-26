@@ -28,6 +28,7 @@ from .serializers import (
     ClassroomStudentMoveSerializer,
     ClassroomWriteSerializer,
     ClassroomAnalyticsSerializer,
+    DailyTrendSerializer,
     PhonemeAnalyticsSerializer,
     SchoolAnalyticsOverviewSerializer,
     SchoolSerializer,
@@ -526,3 +527,16 @@ class SchoolAnalyticsPhonemesView(_SchoolAnalyticsView):
 
         rows = school_analytics.weakest_phonemes(school, limit=10)
         return Response(PhonemeAnalyticsSerializer(rows, many=True).data)
+
+
+class SchoolAnalyticsTrendsView(_SchoolAnalyticsView):
+    """GET /api/schools/analytics/trends/ - the last 7 days, zero-filled
+    for any day with no activity at all."""
+
+    def get(self, request):
+        school = request.user.school
+        if school is None:
+            return Response([])
+
+        rows = school_analytics.daily_trend(school, days=7)
+        return Response(DailyTrendSerializer(rows, many=True).data)

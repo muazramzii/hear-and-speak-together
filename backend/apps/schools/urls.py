@@ -39,6 +39,11 @@ analytics_urlpatterns = [
         views.SchoolAnalyticsPhonemesView.as_view(),
         name="school-analytics-phonemes",
     ),
+    path(
+        "schools/analytics/trends/",
+        views.SchoolAnalyticsTrendsView.as_view(),
+        name="school-analytics-trends",
+    ),
 ]
 
 urlpatterns = router.urls + analytics_urlpatterns
