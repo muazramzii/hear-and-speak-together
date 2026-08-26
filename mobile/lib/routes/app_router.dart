@@ -24,6 +24,13 @@ import '../features/profiles/profile_picker_screen.dart';
 import '../features/progress/progress_screen.dart';
 import '../features/quiz/choice_round_screen.dart';
 import '../features/rewards/rewards_screen.dart';
+import '../features/school_admin/classrooms/school_admin_classroom_detail_screen.dart';
+import '../features/school_admin/classrooms/school_admin_classrooms_screen.dart';
+import '../features/school_admin/dashboard/school_admin_dashboard_screen.dart';
+import '../features/school_admin/reports/school_admin_reports_screen.dart';
+import '../features/school_admin/school_admin_shell.dart';
+import '../features/school_admin/settings/school_admin_settings_screen.dart';
+import '../features/school_admin/teachers/school_admin_teachers_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/students/student_detail_screen.dart';
@@ -105,6 +112,18 @@ class AppRoutes {
   static const String parentReports = '/parent/reports';
   static const String parentProfile = '/parent/profile';
 
+  // School Admin Mode (Phase 6): a third, separate shell reached by any
+  // account with `UserRole.schoolAdmin` - see the router's `redirect`.
+  // Mutually exclusive with Parent Mode above: the backend's `Role` enum
+  // never lets one account be both.
+  static const String schoolAdminRoot = '/school-admin';
+  static const String schoolAdminDashboard = '/school-admin/dashboard';
+  static const String schoolAdminTeachers = '/school-admin/teachers';
+  static const String schoolAdminClassrooms = '/school-admin/classrooms';
+  static const String schoolAdminClassroomDetail = ':classroomId';
+  static const String schoolAdminReports = '/school-admin/reports';
+  static const String schoolAdminSettings = '/school-admin/settings';
+
   static const String splashName = 'splash';
   static const String loginName = 'login';
   static const String registerName = 'register';
@@ -132,6 +151,14 @@ class AppRoutes {
   static const String parentAttemptDetailName = 'parent-attempt-detail';
   static const String parentReportsName = 'parent-reports';
   static const String parentProfileName = 'parent-profile';
+
+  static const String schoolAdminDashboardName = 'school-admin-dashboard';
+  static const String schoolAdminTeachersName = 'school-admin-teachers';
+  static const String schoolAdminClassroomsName = 'school-admin-classrooms';
+  static const String schoolAdminClassroomDetailName =
+      'school-admin-classroom-detail';
+  static const String schoolAdminReportsName = 'school-admin-reports';
+  static const String schoolAdminSettingsName = 'school-admin-settings';
 }
 
 /// Bridges a Riverpod [StateNotifier] to go_router's `refreshListenable`, so
@@ -386,6 +413,76 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // Phase 6 Task 8: the School Admin workspace - a third, separate
+      // shell from both the child-facing routes and Parent Mode above. An
+      // account with `UserRole.schoolAdmin` lands here automatically (see
+      // `redirect`) and never sees either of the other two navigations.
+      StatefulShellRoute.indexedStack(
+        builder:
+            (context, state, navigationShell) =>
+                SchoolAdminShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schoolAdminDashboard,
+                name: AppRoutes.schoolAdminDashboardName,
+                builder: (context, state) => const SchoolAdminDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schoolAdminTeachers,
+                name: AppRoutes.schoolAdminTeachersName,
+                builder: (context, state) => const SchoolAdminTeachersScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schoolAdminClassrooms,
+                name: AppRoutes.schoolAdminClassroomsName,
+                builder: (context, state) => const SchoolAdminClassroomsScreen(),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.schoolAdminClassroomDetail,
+                    name: AppRoutes.schoolAdminClassroomDetailName,
+                    builder:
+                        (context, state) => SchoolAdminClassroomDetailScreen(
+                          classroomId:
+                              int.tryParse(
+                                state.pathParameters['classroomId'] ?? '',
+                              ) ??
+                              0,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schoolAdminReports,
+                name: AppRoutes.schoolAdminReportsName,
+                builder: (context, state) => const SchoolAdminReportsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.schoolAdminSettings,
+                name: AppRoutes.schoolAdminSettingsName,
+                builder: (context, state) => const SchoolAdminSettingsScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
       GoRoute(
         // A developer aid, not part of the child-facing flow.
         path: AppRoutes.connection,
@@ -433,7 +530,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final onParentRoute = location.startsWith(AppRoutes.parentRoot);
+      final onSchoolAdminRoute = location.startsWith(
+        AppRoutes.schoolAdminRoot,
+      );
       final supervisesStudents = auth.user?.role.supervisesStudents ?? false;
+      final isSchoolAdmin = auth.user?.role.isSchoolAdmin ?? false;
+
+      if (isSchoolAdmin) {
+        // The School Admin workspace is its own app experience (Phase 6),
+        // exactly like Parent Mode above: keep this account off the auth
+        // screens, off the splash, and out of every other shell entirely.
+        if (onAuthScreen || !onSchoolAdminRoute) {
+          return AppRoutes.schoolAdminDashboard;
+        }
+        return null;
+      }
+
+      // Neither a Parent/Teacher nor a School Admin account should ever
+      // end up in the School Admin workspace.
+      if (onSchoolAdminRoute) {
+        return AppRoutes.profiles;
+      }
 
       if (supervisesStudents) {
         // Parent Mode is a separate app experience (Phase 4): keep a
